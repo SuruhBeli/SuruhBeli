@@ -1,114 +1,31 @@
-const CACHE_NAME = "suruhbeli-cache-v1";
+// ===== SURUHBELI PWA SERVICE WORKER (PWA VALID, NO PAGE CACHE) ===== //
 
-const STATIC_ASSETS = [
+const APP_VERSION = "1";
 
-  "index.html",
-  "index.css",
-  "index.js",
-
-  "logo.png",
-  "ikon-192.png",
-  "ikon-512.png",
-
-  "home.css",
-  "profil.css",
-  "aktivitas.css",
-  "chatlist.css",
-  "order.css",
-
-  "home.js",
-  "profil.js",
-  "aktivitas.js",
-  "chatlist.js",
-  "order.js",
-
-  "alert.png",
-  "default.png",
-
-  "barang.json",
-  "belanja.json",
-  "chat-empty.json",
-  "loading.json",
-  "makanan.json"
-];
-
-
-// INSTALL
-self.addEventListener("install", event => {
-
-  event.waitUntil(
-
-    caches.open(CACHE_NAME)
-    .then(cache => {
-      console.log("⚡ caching assets");
-      return cache.addAll(STATIC_ASSETS);
-    })
-
-  );
-
+// Install (wajib untuk PWA)
+self.addEventListener("install", (event) => {
+  console.log("SW Installed v" + APP_VERSION);
   self.skipWaiting();
-
 });
 
-
-// ACTIVATE
-self.addEventListener("activate", event => {
-
-  event.waitUntil(
-
-    caches.keys().then(keys => {
-
-      return Promise.all(
-
-        keys.map(key => {
-
-          if(key !== CACHE_NAME){
-            return caches.delete(key);
-          }
-
-        })
-
-      );
-
-    })
-
-  );
-
-  self.clients.claim();
-
+// Activate (ambil kontrol semua tab)
+self.addEventListener("activate", (event) => {
+  console.log("SW Activated");
+  event.waitUntil(self.clients.claim());
 });
 
-
-// FETCH
-self.addEventListener("fetch", event => {
-
-  if(event.request.method !== "GET") return;
+// Fetch handler (NETWORK FIRST, TANPA CACHE HALAMAN)
+self.addEventListener("fetch", (event) => {
+  // Hanya handle request GET
+  if (event.request.method !== "GET") return;
 
   event.respondWith(
-
-    caches.match(event.request)
-    .then(cacheRes => {
-
-      if(cacheRes){
-        return cacheRes;
-      }
-
-      return fetch(event.request)
-        .then(networkRes => {
-
-          return caches.open(CACHE_NAME)
-          .then(cache => {
-
-            cache.put(event.request, networkRes.clone());
-
-            return networkRes;
-
-          });
-
-        });
-
+    fetch(event.request).catch(() => {
+      // Optional fallback kalau offline
+      return new Response("Offline", {
+        status: 503,
+        statusText: "Offline Mode"
+      });
     })
-
   );
-
 });
