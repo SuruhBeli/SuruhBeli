@@ -116,36 +116,40 @@ function initApp() {
     if (active) updateNavCircle(Array.from(navItems).indexOf(active));
   });
 
-  // ====== ANDROID / BROWSER BACK BUTTON ====== //
-window.addEventListener("popstate", ()=>{
+ // ===== ANDROID BACK BUTTON CONTROL ===== //
+
+window.addEventListener("popstate", (e) => {
 
   const activeViewEl = document.querySelector(".view.active");
-
-  const activeView = activeViewEl
+  const view = activeViewEl
       ? activeViewEl.id.replace("view-","")
       : "home";
 
-  if(activeView !== "home"){
+  // jika bukan home → paksa ke home
+  if(view !== "home"){
 
-      // paksa kembali ke home
       const idx = navIndex("home");
 
       if(idx !== null){
-        setActive(idx,true);
+        setActive(idx, true);
       }
 
+      // push lagi supaya tidak keluar app
+      history.pushState({app:true}, "", "#home");
+
+      return;
+  }
+
+  // jika sudah di home → exit app
+  if(confirm("Tekan OK untuk keluar aplikasi")){
+      window.close();
   }else{
-
-      // jika sudah di home → exit
-      if(confirm("Tekan OK untuk keluar aplikasi")){
-        window.close();
-      }
-
+      history.pushState({app:true}, "", "#home");
   }
 
 });
   // Tambahkan state awal supaya popstate bekerja
-  history.replaceState({view:"home"}, "", "#home");
+  history.pushState({app:true}, "", "#home");
 }
 
 // ====== NAVBAR ====== //
