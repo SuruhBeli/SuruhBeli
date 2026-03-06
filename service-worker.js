@@ -2,7 +2,6 @@ const CACHE_NAME = "suruhbeli-cache-v1";
 
 const STATIC_ASSETS = [
 
-  "/",
   "index.html",
   "index.css",
   "index.js",
