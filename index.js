@@ -136,36 +136,43 @@ function initApp() {
   });
 
   // ===== POPSTATE BACK BUTTON ===== //
-  window.addEventListener("popstate", () => {
-    const activeViewEl = document.querySelector(".view.active");
-    const view = activeViewEl
-        ? activeViewEl.id.replace("view-","")
-        : "home";
+  window.addEventListener("popstate", (e) => {
   
-    // ✅ Jika sedang di chatRoom → kembali ke chatlist
-    if(window.roomId){
-        window.dispatchEvent(new Event('goto-chatlist'));
-        window.roomId = null; // reset setelah keluar chatRoom
-        history.pushState({view:'chatlist'}, "", "#chatlist");
-        return;
-    }
+    const state = e.state;
   
-    // Jika bukan home → paksa ke home
-    if(view !== "home"){
+    // 🔥 kalau tidak ada state → balik ke home
+    if(!state || !state.view){
       const idx = navIndex("home");
-      if(idx !== null){
-        setActive(idx, true);
-      }
-      history.pushState({app:true}, "", location.pathname);
+      if(idx !== null) setActive(idx, true);
       return;
     }
   
-    // Jika sudah di home → langsung exit
-    if (navigator.app) {
-        navigator.app.exitApp();
-    } else {
-        window.close();
+    const view = state.view;
+  
+    // 🔥 HANDLE KHUSUS CHAT ROOM
+    if(view === "chatRoom"){
+      window.roomId = state.roomId || null;
+    
+      showView("chatRoom");
+    
+      // IMPORTANT: re-init chat
+      setTimeout(()=>{
+        window.initChatRoomView?.(window.roomId);
+      }, 50);
+    
+      return;
     }
+  
+    // 🔥 VIEW NORMAL (home, chatlist, aktivitas, dll)
+    window.roomId = null;
+  
+    const idx = navIndex(view);
+    if(idx !== null){
+      setActive(idx, true);
+    }else{
+      showView(view);
+    }
+  
   });
   // state awal
   history.pushState({app:true}, "", location.pathname);
@@ -221,7 +228,9 @@ function showView(viewName){
   views.forEach(v => {
     v.classList.remove("active");
   });
-
+  views.forEach(v => {
+    v.style.zIndex = 0;
+  });
   // kasih delay 1 frame biar fade kepicu
   requestAnimationFrame(() => {
     target.classList.add("active");
@@ -280,8 +289,8 @@ function setActive(idx, fromPop=false){
 
   // update URL TANPA menambah history
   if(!fromPop){
-    history.replaceState(
-      {view:viewName},
+    history.pushState(
+      { view: viewName },
       "",
       "#"+viewName
     );
@@ -406,38 +415,21 @@ window.addEventListener('goto-chatlist', () => {
 window.addEventListener('goto-chatRoom', (e) => {
   const { roomId } = e.detail;
   if (!roomId) return;
+
   window.roomId = roomId;
 
-  const chatRoomView = document.getElementById("view-chatRoom");
-  if (!chatRoomView) return;
+  showView("chatRoom");
 
-  // cleanup listener chatRoom lama
-  window.cleanupRoomListeners?.();
-
-  // sembunyikan view lain
-  document.querySelectorAll(".view").forEach(v=>{
-    if(v!==chatRoomView){
-      v.classList.remove("active","zoom-in");
-      v.classList.add("zoom-out");
-      v.style.zIndex = 0;
-    }
-  });
-
-  // aktifkan chatRoom view
-  chatRoomView.classList.remove("zoom-out");
-  chatRoomView.classList.add("active","zoom-in");
-  chatRoomView.style.zIndex = 2;
-  activeView = chatRoomView;
-
-  // toggle header & navbar
   toggleHomeHeader(false);
   toggleNavbarForOrder(true);
   setHeaderTitle("chatRoom");
 
-  // pushState SPA supaya back button compatible
-  history.pushState({view:'chatRoom', roomId}, "", "#chatRoom");
+  history.pushState(
+    { view: 'chatRoom', roomId: roomId },
+    "",
+    "#chatRoom"
+  );
 
-  // inisialisasi JS chatRoom
   window.initChatRoomView?.(roomId);
 });
 

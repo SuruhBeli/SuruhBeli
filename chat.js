@@ -64,22 +64,15 @@ window.addEventListener('goto-chatRoom', (e)=>{
   initChatRoom(newRoomId);
 });
 function initChatRoom(newRoomId){
-  cleanupRoomListeners();   // 🔥 FIX
+  cleanupRoomListeners(true);
+
   roomId = newRoomId;
-  const chatRoomView = document.getElementById("view-chatRoom");
-  if(chatRoomView){
-    document.querySelectorAll(".view").forEach(v=>{
-      if(v!==chatRoomView){
-        v.classList.remove("active","zoom-in");
-        v.classList.add("zoom-out");
-        v.style.zIndex = 0;
-      }
-    });
-    chatRoomView.classList.remove("zoom-out");
-    chatRoomView.classList.add("active","zoom-in");
-    chatRoomView.style.zIndex = 2;
-    activeView = chatRoomView;
-  }
+
+  // 🔥 TAMBAH INI
+  window.activeRoomId = roomId;
+
+  showView("chatRoom");
+
   setupTypingIndicator();
   loadChatRoomInfo();
   setupOnlineStatus();
@@ -112,17 +105,21 @@ function setupOnlineStatus() {
 function setupTypingIndicator(){
   const user = window.currentUser;
   if(!user || !roomId || !input) return;
+
   const typingRef = rtdb.ref(`typing/${roomId}/${user.uid}`);
+
+  // 🔥 FIX double listener
+  if (typingInputHandler) {
+    input.removeEventListener("input", typingInputHandler);
+  }
+
   typingInputHandler = () => {
     typingRef.set(true);
     clearTimeout(window.typingTimeout);
     window.typingTimeout = setTimeout(()=> typingRef.set(false), 1200);
   };
+
   input.addEventListener("input", typingInputHandler);
-  document.addEventListener("visibilitychange", ()=>{
-    if(document.visibilityState !== "visible") typingRef.set(false);
-  });
-  window.addEventListener("beforeunload", cleanupTyping);
 }
 function cleanupTyping(){
   if(typingRefGlobal) typingRefGlobal.set(false);
@@ -133,11 +130,20 @@ function cleanupRoomListeners(force = false){
     console.log("⚠️ Cleanup skipped (same room)");
     return;
   }
+
   if (window.unsubscribeMessages){
     window.unsubscribeMessages();
     window.unsubscribeMessages = null;
   }
+
+  // 🔥 TAMBAH INI
+  if (window.partnerStatusRef){
+    window.partnerStatusRef.off();
+    window.partnerStatusRef = null;
+  }
+
   window.activeRoomId = null;
+
   console.log("🧹 Room listeners cleaned:", roomId);
 }
 window.addEventListener("beforeunload", cleanupRoomListeners);
@@ -145,36 +151,16 @@ window.addEventListener("pagehide", cleanupRoomListeners);
 
 // ===== CHAT ROOM INFO ===== //
 document.getElementById("backBtn").addEventListener("click", () => {
-  goBackToChatList();
+  cleanupRoomListeners(true);
+  window.roomId = null;
+
+  window.dispatchEvent(new Event('goto-chatlist'));
 });
-window.addEventListener('popstate', (event) => {
-  // cek kalau sedang di chat room
-  if(roomId){
-    goBackToChatList();
-    history.pushState(null, null, location.href); // cegah keluar aplikasi
-  }
+window.addEventListener('goto-chatlist', () => {
+  cleanupRoomListeners(true);
+  roomId = null;
 });
 
-// pakai pushState untuk SPA
-history.pushState(null, null, location.href);
-function goBackToChatList(){
-  cleanupRoomListeners(true); // bersihkan listener aktif
-  // hide chat room view
-  const chatRoomView = document.getElementById("view-chatRoom");
-  if(chatRoomView){
-    chatRoomView.classList.remove("active","zoom-in");
-    chatRoomView.classList.add("zoom-out");
-    chatRoomView.style.zIndex = 0;
-  }
-  // tampilkan chat list view
-  const chatListView = document.getElementById("view-chatList");
-  if(chatListView){
-    chatListView.classList.add("active","zoom-in");
-    chatListView.style.zIndex = 2;
-  }
-  activeView = chatListView;
-  roomId = null;
-}
 async function loadChatRoomInfo() {
   if (!roomId || !currentUser) return;
   try {

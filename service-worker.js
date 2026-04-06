@@ -1,31 +1,83 @@
-// ===== SURUHBELI PWA SERVICE WORKER (PWA VALID, NO PAGE CACHE) ===== //
+const CACHE_NAME = "suruhbeli-v2";
 
-const APP_VERSION = "1";
+// file penting (biar cepat load pertama)
+const STATIC_ASSETS = [
+  "/",
+  "/index.html",
+  "/style.css",
+  "/index.js",
+  "/chat.js",
+  "/icon-192.png",
+  "/icon-512.png"
+];
 
-// Install (wajib untuk PWA)
+// ===== INSTALL =====
 self.addEventListener("install", (event) => {
-  console.log("SW Installed v" + APP_VERSION);
+  console.log("✅ SW Installed");
   self.skipWaiting();
-});
 
-// Activate (ambil kontrol semua tab)
-self.addEventListener("activate", (event) => {
-  console.log("SW Activated");
-  event.waitUntil(self.clients.claim());
-});
-
-// Fetch handler (NETWORK FIRST, TANPA CACHE HALAMAN)
-self.addEventListener("fetch", (event) => {
-  // Hanya handle request GET
-  if (event.request.method !== "GET") return;
-
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      // Optional fallback kalau offline
-      return new Response("Offline", {
-        status: 503,
-        statusText: "Offline Mode"
-      });
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(STATIC_ASSETS);
     })
   );
+});
+
+// ===== ACTIVATE =====
+self.addEventListener("activate", (event) => {
+  console.log("🚀 SW Activated");
+
+  event.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    })
+  );
+
+  self.clients.claim();
+});
+
+// ===== FETCH =====
+self.addEventListener("fetch", (event) => {
+
+  const req = event.request;
+
+  // ❌ JANGAN CACHE FIREBASE / API
+  if (req.url.includes("firebase") || req.url.includes("googleapis")) {
+    return;
+  }
+
+  // ===== HTML → NETWORK FIRST =====
+  if (req.headers.get("accept")?.includes("text/html")) {
+    event.respondWith(
+      fetch(req)
+        .then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // ===== STATIC (JS, CSS, IMAGE) → CACHE FIRST =====
+  event.respondWith(
+    caches.match(req).then(cached => {
+      return (
+        cached ||
+        fetch(req).then(res => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(req, copy));
+          return res;
+        })
+      );
+    })
+  );
+
 });
