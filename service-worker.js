@@ -1,12 +1,12 @@
-const CACHE_NAME = "suruhbeli-v2";
+const CACHE_NAME = "suruhbeli-v3";
 
-// file penting (biar cepat load pertama)
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/style.css",
   "/index.js",
   "/chat.js",
+  "/manifest.json",
   "/icon-192.png",
   "/icon-512.png"
 ];
@@ -17,9 +17,7 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(STATIC_ASSETS);
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
 });
 
@@ -47,8 +45,9 @@ self.addEventListener("fetch", (event) => {
 
   const req = event.request;
 
-  // ❌ JANGAN CACHE FIREBASE / API
+  // 🔥 Firebase → selalu network
   if (req.url.includes("firebase") || req.url.includes("googleapis")) {
+    event.respondWith(fetch(req));
     return;
   }
 
@@ -66,7 +65,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ===== STATIC (JS, CSS, IMAGE) → CACHE FIRST =====
+  // ===== STATIC → CACHE FIRST =====
   event.respondWith(
     caches.match(req).then(cached => {
       return (
