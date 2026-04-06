@@ -411,28 +411,6 @@ window.addEventListener('goto-chatlist', () => {
   if (idx !== null) setActive(idx);
 });
 
-// 🔹 SPA chatRoom (single room view)
-window.addEventListener('goto-chatRoom', (e) => {
-  const { roomId } = e.detail;
-  if (!roomId) return;
-
-  window.roomId = roomId;
-
-  showView("chatRoom");
-
-  toggleHomeHeader(false);
-  toggleNavbarForOrder(true);
-  setHeaderTitle("chatRoom");
-
-  history.pushState(
-    { view: 'chatRoom', roomId: roomId },
-    "",
-    "#chatRoom"
-  );
-
-  window.initChatRoomView?.(roomId);
-});
-
 // ====== GLOBAL POPUP MANAGER ====== //
 window.PopupManager = (function(){
   // DOM references
@@ -620,7 +598,27 @@ function showEditProfile(userData) {
     showPhotoOption, closePhotoOption
   };
 })();
+let deferredPrompt;
 
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+
+  console.log("💡 Bisa install PWA");
+
+  // contoh tombol manual
+  const btn = document.getElementById("btnInstall");
+  if(btn){
+    btn.style.display = "block";
+
+    btn.onclick = async () => {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      console.log(choice.outcome);
+      deferredPrompt = null;
+    };
+  }
+});
 // REGISTER SERVICE WORKER
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
