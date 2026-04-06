@@ -40,28 +40,22 @@ window.roomId = null;
 
 // ====== AUTH ====== //
 firebase.auth().onAuthStateChanged(user => {
-
-  // 🔥 skip kalau user sama (hindari rerender)
-  if (window.APP_CACHE.user?.uid === user?.uid) return;
-
+  // Pastikan app sudah init minimal sekali
   if (!appStarted) {
     initApp();
   }
 
   if (user) {
-    const userData = {
+    window.currentUser = {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName || "User"
     };
-
-    window.currentUser = userData;
     window.userId = user.uid;
-    window.APP_CACHE.user = userData;
-
     hideAuthOverlay();
 
-    window.dispatchEvent(new CustomEvent('user-ready', { detail: { currentUser: userData } }));
+    // Kirim event ke modul lain (chat.js)
+    window.dispatchEvent(new CustomEvent('user-ready', { detail: { currentUser: window.currentUser } }));
 
     if (!authReadySent) {
       authReadySent = true;
@@ -71,8 +65,6 @@ firebase.auth().onAuthStateChanged(user => {
   } else {
     window.currentUser = null;
     window.userId = null;
-    window.APP_CACHE.user = null;
-
     showAuthOverlay();
   }
 });
