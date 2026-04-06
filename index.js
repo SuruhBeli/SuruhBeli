@@ -38,8 +38,9 @@ window.APP_CACHE = {
 };
 window.roomId = null;
 
-// ====== AUTH ====== //
+// ====== AUTH ======
 firebase.auth().onAuthStateChanged(user => {
+
   // Pastikan app sudah init minimal sekali
   if (!appStarted) {
     initApp();
@@ -52,11 +53,14 @@ firebase.auth().onAuthStateChanged(user => {
       displayName: user.displayName || "User"
     };
     window.userId = user.uid;
+
+    // sembunyikan overlay jika muncul
     hideAuthOverlay();
 
-    // Kirim event ke modul lain (chat.js)
+    // Kirim event ke modul lain supaya chat.js bisa load partner
     window.dispatchEvent(new CustomEvent('user-ready', { detail: { currentUser: window.currentUser } }));
 
+    // Hanya kirim app-ready sekali
     if (!authReadySent) {
       authReadySent = true;
       window.dispatchEvent(new Event('app-ready'));
@@ -65,6 +69,8 @@ firebase.auth().onAuthStateChanged(user => {
   } else {
     window.currentUser = null;
     window.userId = null;
+
+    // tampilkan overlay tanpa mengubah app yang sudah jalan
     showAuthOverlay();
   }
 });
