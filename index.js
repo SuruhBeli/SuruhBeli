@@ -30,28 +30,49 @@ let appStarted = false;
 let spaInternalNav = false;
 let authReadySent = false;
 let activeView = null;
+// ===== GLOBAL CACHE =====
+window.APP_CACHE = {
+  toko: null,
+  desa: null,
+  user: null,
+};
+window.roomId = null;
 
 // ====== AUTH ====== //
 firebase.auth().onAuthStateChanged(user => {
-  // Pastikan app sudah init minimal sekali
+
+  // 🔥 skip kalau user sama (hindari rerender)
+  if (window.APP_CACHE.user?.uid === user?.uid) return;
+
   if (!appStarted) {
     initApp();
   }
+
   if (user) {
-    window.currentUser = {
+    const userData = {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName || "User"
     };
+
+    window.currentUser = userData;
     window.userId = user.uid;
+    window.APP_CACHE.user = userData;
+
     hideAuthOverlay();
+
+    window.dispatchEvent(new CustomEvent('user-ready', { detail: { currentUser: userData } }));
+
     if (!authReadySent) {
       authReadySent = true;
       window.dispatchEvent(new Event('app-ready'));
     }
+
   } else {
     window.currentUser = null;
     window.userId = null;
+    window.APP_CACHE.user = null;
+
     showAuthOverlay();
   }
 });
@@ -59,28 +80,28 @@ function showAuthOverlay() {
   if (document.getElementById("authOverlay")) return;
   const overlay = document.createElement("div");
   overlay.id = "authOverlay";
-overlay.innerHTML = `
-  <div class="auth-box">
-
-    <div class="auth-icon">
-      🔐
+  overlay.innerHTML = `
+    <div class="auth-box">
+  
+      <div class="auth-icon">
+        🔐
+      </div>
+  
+      <div class="auth-title">
+        Login Diperlukan
+      </div>
+  
+      <div class="auth-desc">
+        Untuk menggunakan fitur aplikasi SuruhBeli
+        silakan masuk atau daftar terlebih dahulu
+      </div>
+  
+      <button class="auth-btn" id="btnMasuk">
+        Masuk / Daftar
+      </button>
+  
     </div>
-
-    <div class="auth-title">
-      Login Diperlukan
-    </div>
-
-    <div class="auth-desc">
-      Untuk menggunakan fitur aplikasi SuruhBeli
-      silakan masuk atau daftar terlebih dahulu
-    </div>
-
-    <button class="auth-btn" id="btnMasuk">
-      Masuk / Daftar
-    </button>
-
-  </div>
-`;
+  `;
   document.body.appendChild(overlay);
   document.getElementById("btnMasuk").onclick = () => {
     window.location.href = "register.html";
@@ -116,133 +137,136 @@ function initApp() {
     if (active) updateNavCircle(Array.from(navItems).indexOf(active));
   });
 
- // ===== ANDROID BACK BUTTON CONTROL ===== //
-
-window.addEventListener("popstate", (e) => {
-
-  const activeViewEl = document.querySelector(".view.active");
-  const view = activeViewEl
-      ? activeViewEl.id.replace("view-","")
-      : "home";
-
-  // jika bukan home → paksa ke home
-  if(view !== "home"){
-
+  // ===== POPSTATE BACK BUTTON ===== //
+  window.addEventListener("popstate", () => {
+    const activeViewEl = document.querySelector(".view.active");
+    const view = activeViewEl
+        ? activeViewEl.id.replace("view-","")
+        : "home";
+  
+    // ✅ Jika sedang di chatRoom → kembali ke chatlist
+    if(window.roomId){
+        window.dispatchEvent(new Event('goto-chatlist'));
+        window.roomId = null; // reset setelah keluar chatRoom
+        history.pushState({view:'chatlist'}, "", "#chatlist");
+        return;
+    }
+  
+    // Jika bukan home → paksa ke home
+    if(view !== "home"){
       const idx = navIndex("home");
-
       if(idx !== null){
         setActive(idx, true);
       }
-
-      // push lagi supaya tidak keluar app
-      history.pushState({app:true}, "", "#home");
-
+      history.pushState({app:true}, "", location.pathname);
       return;
-  }
-
-  // jika sudah di home → exit app
-  if(confirm("Tekan OK untuk keluar aplikasi")){
-      window.close();
-  }else{
-      history.pushState({app:true}, "", "#home");
-  }
-
-});
-  // Tambahkan state awal supaya popstate bekerja
-  history.pushState({app:true}, "", "#home");
+    }
+  
+    // Jika sudah di home → langsung exit
+    if (navigator.app) {
+        navigator.app.exitApp();
+    } else {
+        window.close();
+    }
+  });
+  // state awal
+  history.pushState({app:true}, "", location.pathname);
 }
-
-// ====== NAVBAR ====== //
-function toggleHomeHeader(show) {
-  const logoTop = document.querySelector(".logo-top");
+function initGlobalScrollHeader(viewId){
+  const view = document.getElementById(viewId);
   const scrollHeader = document.getElementById("scrollHeader");
-  if (!logoTop || !scrollHeader) return;
-  if (show) {
-    logoTop.style.opacity = "1";
-    scrollHeader.style.opacity = "0"; 
-    logoTop.style.pointerEvents = "auto";
-    scrollHeader.style.pointerEvents = "auto";
-  } else {
-    logoTop.style.opacity = "0";
-    scrollHeader.style.opacity = "0";
-    logoTop.style.pointerEvents = "none";
-    scrollHeader.style.pointerEvents = "none";
-  }
+  const logoTop = document.querySelector(".logo-top");
+  if(!view) return;
+  view.addEventListener("scroll", () => {
+    const scrollTop = view.scrollTop;
+    if(logoTop){
+      logoTop.classList.toggle("scrolled", scrollTop > 10);
+    }
+    if(scrollHeader){
+      scrollHeader.style.opacity = Math.min(scrollTop / 50, 1);
+    }
+  });
 }
-function updateNavCircle(idx) {
-  const item = navItems[idx];
-  if (!item || !navCircle) return;
-  const rect = item.getBoundingClientRect();
-  const parentRect = item.parentElement.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2 - parentRect.left;
-  navCircle.style.left = `${centerX - navCircle.offsetWidth / 2}px`;
-  navCircle.style.transform = 'scale(1.15)';
-  setTimeout(() => navCircle.style.transform = 'scale(1)', 200);
-  navCircle.style.willChange = "left, transform";
+function setHeaderTitle(viewName){
+
+  const header = document.getElementById("headerTop");
+  if(!header) return;
+  // view yang tidak pakai header global
+  const hideHeaderViews = ["home","order","profil","chatRoom"];
+
+  // sembunyikan header
+  if(hideHeaderViews.includes(viewName)){
+    header.classList.add("hidden");
+    return;
+  }
+
+  // tampilkan header
+  header.classList.remove("hidden");
+
+  const titles = header.querySelectorAll(".header-title");
+
+  titles.forEach(el=>{
+    el.classList.remove("active");
+
+    if(el.dataset.view === viewName){
+      el.classList.add("active");
+    }
+  });
+
 }
 function showView(viewName){
-
   const target = document.getElementById(`view-${viewName}`);
   if(!target) return;
 
-  const current = activeView;
+  const views = document.querySelectorAll(".view");
 
-  if(current && current !== target){
+  views.forEach(v => {
+    v.classList.remove("active");
+  });
 
-    current.classList.remove("zoom-in");
-    current.classList.add("zoom-out");
-
-    target.classList.remove("zoom-out");
-    target.classList.add("active","zoom-in");
-
-    requestAnimationFrame(()=>{
-      target.style.zIndex = 2;
-      current.style.zIndex = 1;
-    });
-
-    setTimeout(()=>{
-      current.classList.remove("active","zoom-out");
-    },350);
-
-  }else{
-
-    target.classList.add("active","zoom-in");
-    target.style.zIndex = 2;
-
-  }
+  // kasih delay 1 frame biar fade kepicu
+  requestAnimationFrame(() => {
+    target.classList.add("active");
+  });
 
   activeView = target;
 
-  // header toggle
-  if(viewName === "home" || viewName === "order"){
-    toggleHomeHeader(true);
-  }else{
-    toggleHomeHeader(false);
-  }
+  // system lain tetap
+  setHeaderTitle(viewName);
 
-  // navbar toggle
-  toggleNavbarForOrder(viewName === "order");
+  const homeHeaderViews = ["home","profil","order"];
+  toggleHomeHeader(homeHeaderViews.includes(viewName));
 
-  // SPA init per view
+  toggleNavbarForOrder(viewName === "chatRoom");
+
   const viewFlag = `_${viewName}Inited`;
-
   if(!window[viewFlag]){
-
     switch(viewName){
-      case "home": window.initHome?.(); break;
-      case "aktivitas": window.initAktivitas?.(); break;
-      case "profil": window.initProfil?.(); break;
-      case "chatlist": window.initChatList?.(); break;
-      case "order": window.initOrder?.(); break;
+      case "home": 
+        window.initHome?.(); 
+        initGlobalScrollHeader("view-home");
+        break;
+      case "profil": 
+        window.initProfil?.(); 
+        initGlobalScrollHeader("view-profil");
+        break;
+      case "order": 
+        window.initOrder?.(); 
+        initGlobalScrollHeader("view-order");
+        break;
+      case "aktivitas": 
+        window.initAktivitas?.(); 
+        break;
+      case "chatlist": 
+        window.initChatList?.(); 
+        break;
+      case "chatRoom":
+        window.initChatRoomView?.(); 
+        break;
     }
-
     window[viewFlag] = true;
   }
-
 }
-
-// ======  NAVIGATION ====== //
-// ====== GANTI setActive TANDI NAV INTERNAL====== //
 function setActive(idx, fromPop=false){
 
   const viewName = navItems[idx].dataset.view;
@@ -266,7 +290,35 @@ function setActive(idx, fromPop=false){
   }
 
 }
-// Cari index nav berdasarkan view
+function toggleHomeHeader(show) {
+  const logoTop = document.querySelector(".logo-top");
+  const scrollHeader = document.getElementById("scrollHeader");
+  if (!logoTop || !scrollHeader) return;
+  if (show) {
+    logoTop.style.opacity = "1";
+    scrollHeader.style.opacity = "0"; 
+    logoTop.style.pointerEvents = "auto";
+    scrollHeader.style.pointerEvents = "auto";
+  } else {
+    logoTop.style.opacity = "0";
+    scrollHeader.style.opacity = "0";
+    logoTop.style.pointerEvents = "none";
+    scrollHeader.style.pointerEvents = "none";
+  }
+}
+
+// ====== NAVBAR ====== //
+function updateNavCircle(idx) {
+  const item = navItems[idx];
+  if (!item || !navCircle) return;
+  const rect = item.getBoundingClientRect();
+  const parentRect = item.parentElement.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2 - parentRect.left;
+  navCircle.style.left = `${centerX - navCircle.offsetWidth / 2}px`;
+  navCircle.style.transform = 'scale(1.15)';
+  setTimeout(() => navCircle.style.transform = 'scale(1)', 200);
+  navCircle.style.willChange = "left, transform";
+}
 function navIndex(viewName) {
   const item = Array.from(navItems).find(i => i.dataset.view === viewName);
   return item ? Array.from(navItems).indexOf(item) : 0;
@@ -302,6 +354,7 @@ window.addEventListener('goto-aktivitas', () => {
   const idx = navIndex('aktivitas');
   if (idx !== null) setActive(idx);
 });
+
 window.addEventListener('goto-chatlist', () => {
   const idx = navIndex('chatlist');
   if (idx !== null) setActive(idx);
@@ -341,6 +394,55 @@ document.addEventListener("keydown", function(e){
     document.body.classList.remove("popup-open");
   }
 });
+// ====== SPA CUSTOM EVENTS ===== //
+window.addEventListener('goto-aktivitas', () => {
+  const idx = navIndex('aktivitas');
+  if (idx !== null) setActive(idx);
+});
+window.addEventListener('goto-chatlist', () => {
+  const idx = navIndex('chatlist');
+  if (idx !== null) setActive(idx);
+});
+
+// 🔹 SPA chatRoom (single room view)
+window.addEventListener('goto-chatRoom', (e) => {
+  const { roomId } = e.detail;
+  if (!roomId) return;
+  window.roomId = roomId;
+
+  const chatRoomView = document.getElementById("view-chatRoom");
+  if (!chatRoomView) return;
+
+  // cleanup listener chatRoom lama
+  window.cleanupRoomListeners?.();
+
+  // sembunyikan view lain
+  document.querySelectorAll(".view").forEach(v=>{
+    if(v!==chatRoomView){
+      v.classList.remove("active","zoom-in");
+      v.classList.add("zoom-out");
+      v.style.zIndex = 0;
+    }
+  });
+
+  // aktifkan chatRoom view
+  chatRoomView.classList.remove("zoom-out");
+  chatRoomView.classList.add("active","zoom-in");
+  chatRoomView.style.zIndex = 2;
+  activeView = chatRoomView;
+
+  // toggle header & navbar
+  toggleHomeHeader(false);
+  toggleNavbarForOrder(true);
+  setHeaderTitle("chatRoom");
+
+  // pushState SPA supaya back button compatible
+  history.pushState({view:'chatRoom', roomId}, "", "#chatRoom");
+
+  // inisialisasi JS chatRoom
+  window.initChatRoomView?.(roomId);
+});
+
 // ====== GLOBAL POPUP MANAGER ====== //
 window.PopupManager = (function(){
   // DOM references
@@ -424,16 +526,13 @@ window.PopupManager = (function(){
     }
   }
   function closeCustom(){ if(popups.custom) popups.custom.classList.remove("show"); }
-
 // =====EDIT PROFIL ===== //
 function showEditProfile(userData) {
   const popup = document.getElementById("popupEditProfile");
   if (!popup) return;
-
   // Isi input
   document.getElementById("editNama").value = userData?.nama || "";
   document.getElementById("editNoHP").value = userData?.noHP || userData?.phone || "";
-
   // Preview avatar
   const editPreview = document.getElementById("editAvatarPreview");
   if (userData?.photoURL) {
@@ -443,7 +542,6 @@ function showEditProfile(userData) {
   } else {
     editPreview.textContent = "U";
   }
-
   // Upload photo
   const inputPhoto = document.getElementById("inputPhoto");
   const btnUpload = document.getElementById("btnUploadPhoto");
@@ -461,7 +559,6 @@ function showEditProfile(userData) {
       reader.readAsDataURL(file);
     };
   }
-
   popup.classList.add("show");
   document.body.classList.add("popup-open");
 }
@@ -469,50 +566,39 @@ function showEditProfile(userData) {
     if (popups.editProfile) popups.editProfile.classList.remove("show");
     document.body.classList.remove("popup-open");
   }
-  
   // ====== PHOTO OPTION POPUP ====== //
   // Event upload foto
   const inputPhoto = document.getElementById("inputPhoto");
   const editPreview = document.getElementById("editAvatarPreview");
   function showPhotoOption(){
     if(!popups.photoOption) return;
-  
     popups.photoOption.classList.add("show");
     document.body.classList.add("popup-open");
   }
   function closePhotoOption(){
     if(!popups.photoOption) return;
-  
     popups.photoOption.classList.remove("show");
   }
   const btnGallery = document.getElementById("btnChooseGallery");
   const btnDelete = document.getElementById("btnDeletePhoto");
   const btnCancel = document.getElementById("btnCancelPhotoOption");
-  
   if(btnGallery){
     btnGallery.onclick = () => {
       closePhotoOption();
       document.getElementById("inputPhoto").click();
     };
   }
-  
   if(btnDelete){
     btnDelete.onclick = () => {
-  
       closePhotoOption();
-  
       localStorage.setItem("tempProfilePhoto","delete");
-  
       const preview = document.getElementById("editAvatarPreview");
       const nama = document.getElementById("editNama")?.value || "U";
-  
       if(preview){
         preview.textContent = nama.charAt(0).toUpperCase();
       }
-  
     };
   }
-  
   if(btnCancel){
     btnCancel.onclick = closePhotoOption;
   }

@@ -43,10 +43,13 @@ function loadOrders() {
     unsubscribeOrders = null;
   }
 
-  unsubscribeOrders = window.db.collection("orders")
-    .where("userId", "==", window.userId)
-    .orderBy("createdAt", "desc")
-    .onSnapshot(snapshot => {
+const pageSize = 50; // load max 50 orders pertama
+unsubscribeOrders = window.db.collection("orders")
+  .where("userId", "==", window.userId)
+  .orderBy("createdAt", "desc")
+  .limit(pageSize)
+  .onSnapshot(snapshot => {
+    if (!snapshot.empty) {
       currentOrders = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
@@ -55,39 +58,124 @@ function loadOrders() {
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(0)
         };
       });
+      requestAnimationFrame(renderOrders); // debounce render
+    } else {
+      currentOrders = [];
       renderOrders();
-    }, err => {
-      console.error("Firestore listener error:", err);
-      container.innerHTML = "Gagal memuat pesanan.";
-    });
+    }
+  }, err => {
+    console.error("Firestore listener error:", err);
+    container.innerHTML = "Gagal memuat pesanan.";
+  });
 }
 
-/* ====== FILTER + RENDER ======= */
+/* ====== RENDER ORDERS ====== */
 function renderOrders() {
   const container = document.getElementById("ordersContainer");
   const empty = document.getElementById("ordersEmpty");
   if (!container || !empty) return;
 
-  const filtered = currentOrders.filter(o => {
+  // Filter sesuai tab aktif
+  const filtered = currentOrders.filter(o => o && o.status); // ✅ pastikan o tidak undefined
+  const filteredByTab = filtered.filter(o => {
     if (activeTab === "aktif") return o.status === "Dibuat";
     if (activeTab === "diproses") return o.status === "Diproses";
     return o.status === "Selesai" || o.status === "Dibatalkan";
   });
 
-  if (!filtered.length) {
+  if (!filteredByTab.length) {
     container.innerHTML = "";
     empty.style.display = "block";
     return;
   }
 
-  container.innerHTML = "";
   empty.style.display = "none";
 
-  filtered.forEach(order => renderOrderCard(container, order));
-}
+  const fragment = document.createDocumentFragment();
 
+  filteredByTab.forEach(order => {
+    if (!order) return; // tambahan safety
+    let card = document.getElementById("order-" + order.id);
+    if (!card) {
+      card = renderOrderCard(order); // ✅ hanya passing order
+      card.id = "order-" + order.id;
+    } else {
+      updateOrderCard(card, order); // update existing card
+    }
+    fragment.appendChild(card);
+  });
+
+  container.innerHTML = "";
+  container.appendChild(fragment);
+}
+/* ====== UPDATE CARD EXISTING ====== */
+function updateOrderCard(card, order) {
+  if (!card || !order) return;
+
+  // Update konten utama
+  const layananEl = card.querySelector(".order-content > div:nth-child(1) b");
+  const pesananEl = card.querySelector(".order-content > div:nth-child(2)");
+  const ongkirEl = card.querySelector(".order-content > div:nth-child(3)");
+  const statusEl = card.querySelector(".order-content .status");
+  const waktuEl = card.querySelector(".order-content > div:nth-child(5)");
+
+  if (layananEl) layananEl.textContent = order.layanan || "-";
+  if (pesananEl) pesananEl.textContent = "Pesanan: " + (order.pesanan || "-");
+  if (ongkirEl) ongkirEl.textContent = "Ongkir: Rp " + (Number(order.ongkir || 0)).toLocaleString("id-ID");
+
+  if (statusEl) {
+    let statusClass = '';
+    switch (order.status) {
+      case 'Dibuat': statusClass = 'proses'; break;
+      case 'Diproses': statusClass = 'diproses'; break;
+      case 'Selesai': statusClass = 'selesai'; break;
+      case 'Dibatalkan': statusClass = 'gagal'; break;
+      default: statusClass = 'proses';
+    }
+    statusEl.className = "status " + statusClass;
+    statusEl.textContent = order.status || "-";
+  }
+
+  if (waktuEl) {
+    waktuEl.textContent = order.createdAt?.toLocaleString ? order.createdAt.toLocaleString("id-ID") : "-";
+  }
+
+  // Update tombol actions
+  const actionsEl = card.querySelector(".order-actions");
+  if (!actionsEl) return;
+
+  const now = Date.now(); 
+  const createdTime = order.createdAt?.getTime ? order.createdAt.getTime() : 0;
+  const canCancel = order.status === 'Dibuat' && (now - createdTime < 10 * 60 * 1000);
+  const canEdit = order.status === 'Dibuat' && (now - createdTime < 10 * 60 * 1000);
+  const canChat = order.status === 'Diproses' && order.kurir;
+
+  // Hanya rebuild actions
+  actionsEl.innerHTML = `
+    <div class="action-wrapper">
+      <span class="action-label">Detail</span>
+      <button class="action-btn btn-detail" onclick="showDetail('${order.id}')">Detail</button>
+    </div>
+    ${canEdit ? `
+    <div class="action-wrapper">
+      <span class="action-label">Edit</span>
+      <button class="action-btn btn-edit" onclick="openEditPopup('${order.id}')">Edit</button>
+    </div>` : ''}
+    ${canCancel ? `
+    <div class="action-wrapper">
+      <span class="action-label">Batalkan</span>
+      <button class="action-btn btn-cancel" onclick="confirmCancel('${order.id}')">Batalkan</button>
+    </div>` : ''}
+    ${canChat ? `
+    <div class="action-wrapper">
+      <span class="action-label">Chat Driver</span>
+      <button class="action-btn btn-chat" onclick="chatDriver('${order.kurir}', '${order.id}')">Chat</button>
+    </div>` : ''}
+  `;
+}
 /* ====== RENDER CARD ====== */
-function renderOrderCard(container, order) {
+function renderOrderCard(order) {
+  if (!order) order = {}; // safety
   let statusClass = '';
   switch (order.status) {
     case 'Dibuat': statusClass = 'proses'; break;
@@ -97,62 +185,43 @@ function renderOrderCard(container, order) {
     default: statusClass = 'proses';
   }
 
-  const createdTime = order.createdAt.getTime();
-  const now = new Date().getTime();
+  const now = Date.now(); 
+  const createdTime = order.createdAt?.getTime ? order.createdAt.getTime() : 0;
   const canCancel = order.status === 'Dibuat' && (now - createdTime < 10 * 60 * 1000);
   const canEdit = order.status === 'Dibuat' && (now - createdTime < 10 * 60 * 1000);
 
   const card = document.createElement('div');
   card.className = 'order-card';
 
-  /* ===== BUTTON DETAIL (DENGAN LABEL) ===== */
+  /* ===== BUTTON DETAIL ===== */
   const detailBtn = `
     <div class="action-wrapper">
       <span class="action-label">Detail</span>
-      <button class="action-btn btn-detail" onclick="showDetail('${order.id}')">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-          <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-          <path fill-rule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 0 1 0-1.113ZM17.25 12a5.25 5.25 0 1 1-10.5 0 5.25 5.25 0 0 1 10.5 0Z" clip-rule="evenodd" />
-        </svg>
-      </button>
+      <button class="action-btn btn-detail" onclick="showDetail('${order.id}')">Detail</button>
     </div>
   `;
-  
-  /* ===== BUTTON EDIT (DENGAN LABEL) ===== */
+
+  /* ===== BUTTON EDIT ===== */
   const editBtn = canEdit ? `
     <div class="action-wrapper">
       <span class="action-label">Edit</span>
-      <button class="action-btn btn-edit" onclick="openEditPopup('${order.id}')">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-          <path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z" />
-          <path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z" />
-        </svg>
-      </button>
-    </div>
-  ` : '';
-  
-  /* ===== BUTTON CANCEL (DENGAN LABEL) ===== */
-  const cancelBtn = canCancel ? `
-    <div class="action-wrapper">
-      <span class="action-label">Batalkan</span>
-      <button class="action-btn btn-cancel" onclick="confirmCancel('${order.id}')">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-          <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C22.5 3.839 21.66 3 20.625 3H3.375Z" />
-          <path fill-rule="evenodd" d="m3.087 9 .54 9.176A3 3 0 0 0 6.62 21h10.757a3 3 0 0 0 2.995-2.824L20.913 9H3.087Zm6.133 2.845a.75.75 0 0 1 1.06 0l1.72 1.72 1.72-1.72a.75.75 0 1 1 1.06 1.06l-1.72 1.72 1.72 1.72a.75.75 0 1 1-1.06 1.06L12 15.685l-1.72 1.72a.75.75 0 1 1-1.06-1.06l1.72-1.72-1.72-1.72a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
-        </svg>
-      </button>
+      <button class="action-btn btn-edit" onclick="openEditPopup('${order.id}')">Edit</button>
     </div>
   ` : '';
 
-  /* ===== BUTTON CHAT (DENGAN LABEL) ===== */
+  /* ===== BUTTON CANCEL ===== */
+  const cancelBtn = canCancel ? `
+    <div class="action-wrapper">
+      <span class="action-label">Batalkan</span>
+      <button class="action-btn btn-cancel" onclick="confirmCancel('${order.id}')">Batalkan</button>
+    </div>
+  ` : '';
+
+  /* ===== BUTTON CHAT ===== */
   const chatBtn = (order.status === 'Diproses' && order.kurir) ? `
     <div class="action-wrapper">
       <span class="action-label">Chat Driver</span>
-      <button class="action-btn btn-chat" onclick="chatDriver('${order.kurir}', '${order.id}')">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-          <path fill-rule="evenodd" d="M4.848 2.771A49.144 49.144 0 0 1 12 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 0 1-3.476.383.39.39 0 0 0-.297.17l-2.755 4.133a.75.75 0 0 1-1.248 0l-2.755-4.133a.39.39 0 0 0-.297-.17 48.9 48.9 0 0 1-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97ZM6.75 8.25a.75.75 0 0 1 .75-.75h9a.75.75 0 0 1 0 1.5h-9a.75.75 0 0 1-.75-.75Zm.75 2.25a.75.75 0 0 0 0 1.5H12a.75.75 0 0 0 0-1.5H7.5Z" clip-rule="evenodd" />
-        </svg>
-      </button>
+      <button class="action-btn btn-chat" onclick="chatDriver('${order.kurir}', '${order.id}')">Chat</button>
     </div>
   ` : '';
 
@@ -160,13 +229,12 @@ function renderOrderCard(container, order) {
     <div class="order-content">
       <div><b>${order.layanan || '-'}</b></div>
       <div>Pesanan: ${order.pesanan || '-'}</div>
-      <div>Ongkir: Rp ${order.ongkir?.toLocaleString('id-ID') || '-'}</div>
-      <div class="status ${statusClass}">${order.status}</div>
+      <div>Ongkir: Rp ${Number(order.ongkir || 0).toLocaleString('id-ID')}</div>
+      <div class="status ${statusClass}">${order.status || '-'}</div>
       <div style="font-size:12px; opacity:0.7;">
-        ${order.createdAt.toLocaleString("id-ID")}
+        ${order.createdAt?.toLocaleString ? order.createdAt.toLocaleString("id-ID") : '-'}
       </div>
     </div>
-
     <div class="order-actions">
       ${detailBtn}
       ${editBtn}
@@ -174,7 +242,8 @@ function renderOrderCard(container, order) {
       ${chatBtn}
     </div>
   `;
-  container.appendChild(card);
+
+  return card;
 }
 
 /* ========================================
@@ -203,186 +272,172 @@ function getStatusBadge(status) {
   }
 
 }
-let detailListener = null;
-function showDetail(orderId) {
+/* ====== DETAIL POPUP EFISIEN ====== */
+let activeDetailListeners = {}; // untuk tiap popup terbuka
 
+function showDetail(orderId) {
   const content = document.getElementById("popupContent");
   if (!content) return;
 
-  content.innerHTML = "Memuat struk...";
+  // Ambil data dari cache untuk render instan
+  let cachedOrder = currentOrders.find(o => o.id === orderId);
+  if (cachedOrder) {
+    renderDetailPopup(cachedOrder, content);
+  } else {
+    content.innerHTML = "Memuat struk...";
+  }
 
-  /* buka popup global */
+  // buka popup
   openPopup("popupDetail");
 
-  /* stop listener lama */
-  if (detailListener) detailListener();
+  // stop listener lama kalau ada
+  if (activeDetailListeners[orderId]) {
+    activeDetailListeners[orderId](); // unsubscribe
+    delete activeDetailListeners[orderId];
+  }
 
-  detailListener = window.db
-  .collection("orders")
-  .doc(orderId)
-  .onSnapshot(doc => {
-
+  // setup realtime listener Firestore untuk order ini
+  activeDetailListeners[orderId] = window.db
+    .collection("orders")
+    .doc(orderId)
+    .onSnapshot(doc => {
       if (!doc.exists) {
         content.innerHTML = "Data tidak ditemukan.";
         return;
       }
+      const updatedOrder = { id: doc.id, ...doc.data() };
+      
+      // update currentOrders agar kartu & popup sinkron
+      const index = currentOrders.findIndex(o => o.id === orderId);
+      if (index >= 0) currentOrders[index] = updatedOrder;
+      else currentOrders.push(updatedOrder);
 
-      const d = { id: doc.id, ...doc.data() };
-
-      const createdAt =
-        d.createdAt?.toDate ?
-        d.createdAt.toDate() :
-        new Date(0);
-
-      content.innerHTML = `
-        <div class="receipt-header">
-          <img src="alert.png" class="receipt-logo">
-          <div class="receipt-title">SuruhBeli</div>
-          <div class="receipt-sub">Struk Pesanan Digital</div>
-        </div>
-
-        <div class="row">
-          <span class="label">ID Pesanan</span>
-          <span class="value">#${d.id.slice(0,6)}</span>
-        </div>
-
-        <div class="row">
-          <span class="label">Waktu</span>
-          <span class="value">
-            ${createdAt.toLocaleString("id-ID")}
-          </span>
-        </div>
-
-        <div class="dash"></div>
-
-        <div class="row">
-          <span class="label">Layanan</span>
-          <span class="value">${d.layanan || "-"}</span>
-        </div>
-
-        <div class="row">
-          <span class="label">Pesanan</span>
-          <span class="value">${d.pesanan || "-"}</span>
-        </div>
-
-        <div class="row">
-          <span class="label">Beli di</span>
-          <span class="value">${d.beliDi || "-"}</span>
-        </div>
-
-        <div class="row">
-          <span class="label">Catatan</span>
-          <span class="value">${d.catatan || "-"}</span>
-        </div>
-
-        <div class="dash"></div>
-
-        <div class="row">
-          <span class="label">Ongkir</span>
-          <span class="value">
-            Rp ${d.ongkir?.toLocaleString("id-ID") || "0"}
-          </span>
-        </div>
-
-        <div class="row">
-          <span class="label">Status</span>
-          <span class="value">${getStatusBadge(d.status)}</span>
-        </div>
-
-        <div class="dash"></div>
-
-        <div class="receipt-footer">
-          Terima kasih telah menggunakan SuruhBeli
-        </div>
-      `;
-
-  });
-
+      // update popup dan card
+      renderDetailPopup(updatedOrder, content);
+      const cardEl = document.getElementById("order-" + orderId);
+      if (cardEl) updateOrderCard(cardEl, updatedOrder);
+    }, err => {
+      console.error("Detail listener error:", err);
+    });
 }
-function closeDetailPopup(){
 
+function renderDetailPopup(order, contentEl) {
+  const createdAt = order.createdAt?.toDate ? order.createdAt.toDate() : new Date(0);
+  contentEl.innerHTML = `
+    <div class="receipt-header">
+      <img src="alert.png" class="receipt-logo">
+      <div class="receipt-title">SuruhBeli</div>
+      <div class="receipt-sub">Struk Pesanan Digital</div>
+    </div>
+
+    <div class="row"><span class="label">ID Pesanan</span><span class="value">#${order.id.slice(0,6)}</span></div>
+    <div class="row"><span class="label">Waktu</span><span class="value">${createdAt.toLocaleString("id-ID")}</span></div>
+    <div class="dash"></div>
+    <div class="row"><span class="label">Layanan</span><span class="value">${order.layanan || "-"}</span></div>
+    <div class="row"><span class="label">Pesanan</span><span class="value">${order.pesanan || "-"}</span></div>
+    <div class="row"><span class="label">Beli di</span><span class="value">${order.beliDi || "-"}</span></div>
+    <div class="row"><span class="label">Catatan</span><span class="value">${order.catatan || "-"}</span></div>
+    <div class="dash"></div>
+    <div class="row"><span class="label">Ongkir</span><span class="value">Rp ${order.ongkir?.toLocaleString("id-ID") || "0"}</span></div>
+    <div class="row"><span class="label">Status</span><span class="value">${getStatusBadge(order.status)}</span></div>
+    <div class="dash"></div>
+    <div class="receipt-footer">Terima kasih telah menggunakan SuruhBeli</div>
+  `;
+}
+
+function closeDetailPopup() {
   closePopup("popupDetail");
 
-  if(detailListener){
-    detailListener();
-    detailListener = null;
-  }
-
+  // hentikan semua listener popup terbuka
+  Object.keys(activeDetailListeners).forEach(orderId => {
+    activeDetailListeners[orderId]();
+    delete activeDetailListeners[orderId];
+  });
 }
-/* ====== EDIT POPUP ====== */
-function openEditPopup(orderId){
+/* ====== EDIT POPUP EFISIEN ====== */
+let activeEditListeners = {}; // tracking listener tiap popup edit
 
+function openEditPopup(orderId) {
   const pesananInput = document.getElementById("editPesanan");
   const catatanInput = document.getElementById("editCatatan");
+  if (!pesananInput || !catatanInput) return;
 
-  if(!pesananInput || !catatanInput) return;
+  // Ambil data dari cache supaya popup instan
+  let cachedOrder = currentOrders.find(o => o.id === orderId);
+  if (cachedOrder) {
+    pesananInput.value = cachedOrder.pesanan || "";
+    catatanInput.value = cachedOrder.catatan || "";
+  } else {
+    pesananInput.value = "Memuat...";
+    catatanInput.value = "";
+  }
 
   openPopup("popupEdit");
-
-  pesananInput.value = "Memuat...";
-  catatanInput.value = "";
-
   window.currentEditId = orderId;
 
-  window.db
-  .collection("orders")
-  .doc(orderId)
-  .get()
-  .then(doc => {
+  // Stop listener lama
+  if (activeEditListeners[orderId]) {
+    activeEditListeners[orderId]();
+    delete activeEditListeners[orderId];
+  }
 
-    if(!doc.exists) return;
+  // Setup listener realtime Firestore untuk edit
+  activeEditListeners[orderId] = window.db
+    .collection("orders")
+    .doc(orderId)
+    .onSnapshot(doc => {
+      if (!doc.exists) return;
+      const updatedOrder = { id: doc.id, ...doc.data() };
 
-    const d = doc.data();
+      // update currentOrders & card
+      const index = currentOrders.findIndex(o => o.id === orderId);
+      if (index >= 0) currentOrders[index] = updatedOrder;
+      else currentOrders.push(updatedOrder);
 
-    pesananInput.value = d.pesanan || "";
-    catatanInput.value = d.catatan || "";
+      const cardEl = document.getElementById("order-" + orderId);
+      if (cardEl) updateOrderCard(cardEl, updatedOrder);
 
-  });
-
+      // update popup inputs kecuali user lagi ketik
+      if (document.activeElement !== pesananInput) pesananInput.value = updatedOrder.pesanan || "";
+      if (document.activeElement !== catatanInput) catatanInput.value = updatedOrder.catatan || "";
+    }, err => {
+      console.error("Edit listener error:", err);
+    });
 }
-function closeEditPopup(){
 
+function closeEditPopup() {
   closePopup("popupEdit");
 
+  // Stop listener popup edit
+  if (window.currentEditId && activeEditListeners[window.currentEditId]) {
+    activeEditListeners[window.currentEditId]();
+    delete activeEditListeners[window.currentEditId];
+  }
+
   window.currentEditId = null;
-
 }
-async function saveEditOrder(){
 
-  if(!window.currentEditId) return;
+async function saveEditOrder() {
+  if (!window.currentEditId) return;
 
-  const pesanan =
-    document.getElementById("editPesanan").value.trim();
+  const pesanan = document.getElementById("editPesanan").value.trim();
+  const catatan = document.getElementById("editCatatan").value.trim();
 
-  const catatan =
-    document.getElementById("editCatatan").value.trim();
-
-  try{
-
+  try {
     await window.db
-    .collection("orders")
-    .doc(window.currentEditId)
-    .update({ pesanan, catatan });
+      .collection("orders")
+      .doc(window.currentEditId)
+      .update({ pesanan, catatan });
 
     closeEditPopup();
-
-    await showCustomPopup(
-      "Pesanan berhasil diperbarui!"
-    );
-
-    renderOrders();
-
-  }
-  catch(err){
-
+    await showCustomPopup("Pesanan berhasil diperbarui!");
+    
+    // renderOrders() optional karena listener sudah update card
+    // renderOrders();
+  } catch (err) {
     console.error(err);
-
-    await showCustomPopup(
-      "Gagal memperbarui pesanan!"
-    );
-
+    await showCustomPopup("Gagal memperbarui pesanan!");
   }
-
 }
 
 /* ====== CUSTOM POPUP ALERT / CONFIRM ====== */
@@ -469,16 +524,17 @@ async function chatDriver(kurirUid, orderId) {
   const roomsRef = db.collection('chatRooms');
   let roomId = null;
 
-  // Cari room existing
+  // Tambahkan composite index di Firestore untuk query ini
   const snapshot = await roomsRef
     .where(`participants.${window.currentUser.uid}`, '==', true)
     .where(`participants.${kurirUid}`, '==', true)
+    .limit(1) // cukup ambil 1
     .get();
 
   if (!snapshot.empty) {
     roomId = snapshot.docs[0].id;
   } else {
-    // Buat room baru
+    // Buat room baru dengan participants
     const newRoom = await roomsRef.add({
       participants: {
         [window.currentUser.uid]: true,
@@ -489,5 +545,17 @@ async function chatDriver(kurirUid, orderId) {
     roomId = newRoom.id;
   }
 
-  window.location.href = `chat.html?roomId=${roomId}`;
+  // 🔹 Dispatch SPA event seperti di chatlist.js
+  window.dispatchEvent(new CustomEvent("goto-chatRoom", { 
+    detail: { 
+      roomId: roomId,
+      participants: {
+        [window.currentUser.uid]: true,
+        [kurirUid]: true
+      } 
+    } 
+  }));
+
+  // 🔹 Pindah view SPA
+  showView('chatRoom');
 }

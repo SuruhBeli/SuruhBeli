@@ -90,70 +90,90 @@ window.addEventListener("app-ready", async () => {
 });
 
 // ===== HERO HEADER LOAD ===== //
+let cacheHeroHeader = null;
+
 async function loadHeroHeader(){
   const hero = document.getElementById("heroHeader");
   const defaultImg = "default.png";
   if(!hero) return;
   try{
+    if(cacheHeroHeader){
+      setHeroImage(cacheHeroHeader);
+      return;
+    }
     const doc = await db.collection("stockfoto").doc("foto").get();
     const url = doc.exists ? doc.data().headerorder : "";
-    const imgTest = new Image();
-    imgTest.src = url; // cuma pasang URL asli
-    imgTest.onload = () => {
-      hero.style.backgroundImage = `url('${url}')`;
-      hero.style.opacity = "0";               // mulai dari transparan
-      setTimeout(()=>{ hero.style.opacity = "1"; }, 50); // fade in
-    };
-    imgTest.onerror = () => {
-      hero.style.backgroundImage = `url('${defaultImg}')`;
-    };
+    cacheHeroHeader = url || defaultImg;
+    setHeroImage(cacheHeroHeader);
   }catch(e){
-    hero.style.backgroundImage = `url('${defaultImg}')`;
+    setHeroImage(defaultImg);
+  }
+
+  function setHeroImage(url){
+    const imgTest = new Image();
+    imgTest.src = url;
+    imgTest.onload = ()=>{ hero.style.backgroundImage=`url('${url}')`; hero.style.opacity="0"; setTimeout(()=>hero.style.opacity="1",50); };
+    imgTest.onerror = ()=>{ hero.style.backgroundImage=`url('${defaultImg}')`; };
   }
 }
 
 // ===== LOAD DESA DROPDOWN ===== //
+let cacheDesaDropdown = null; // ⬅️ simpan cache
+
 async function loadDesaDropdown(){
   const hiddenSelect = document.getElementById('locationSelect');
   if(!hiddenSelect || !desaTrigger || !desaPopupList) return;
+
+  // pakai cache dulu
+  if(cacheDesaDropdown){
+    renderDesaDropdown(cacheDesaDropdown);
+    return;
+  }
+
   try{
     const snapshot = await db.collection("desa").orderBy("urutan","asc").get();
-    hiddenSelect.innerHTML = `<option value="" disabled selected>Pilih beli dimana</option>`;
-    desaPopupList.innerHTML = "";
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      const nama = data.nama || doc.id;
-      // hidden select
-      const option = document.createElement("option");
-      option.value = nama;
-      option.dataset.lat = data.lat;
-      option.dataset.lng = data.lng;
-      hiddenSelect.appendChild(option);
-      // popup item
-      const item = document.createElement("div");
-      item.className = "custom-option";
-      item.textContent = nama;
-      item.dataset.value = nama;
-      item.dataset.lat = data.lat;
-      item.dataset.lng = data.lng;
-      item.style.borderRadius = "12px";
-      item.addEventListener("click", ()=>{
-        desaTrigger.innerHTML = `${nama} <span class="arrow">⌄</span>`;
-        hiddenSelect.value = nama;
-        desaTujuan = { nama, lat: parseFloat(item.dataset.lat), lng: parseFloat(item.dataset.lng) };
-        hitungOngkirRanking();
-        updateSummary();
-        desaPopup.classList.remove("show");
-        document.querySelectorAll('#desaPopupList .custom-option').forEach(opt => opt.classList.remove('selected'));
-        item.classList.add('selected');
-      });
-      desaPopupList.appendChild(item);
-    });
-    desaTrigger.innerHTML = `Pilih beli dimana <span class="arrow">⌄</span>`;
+    const desaData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    cacheDesaDropdown = desaData; // simpan cache
+    renderDesaDropdown(desaData);
   }catch(err){
     console.log("Gagal load desa:", err);
     desaTrigger.innerText = "Gagal memuat desa";
   }
+}
+
+function renderDesaDropdown(desaList){
+  const hiddenSelect = document.getElementById('locationSelect');
+  const desaPopupList = document.getElementById('desaPopupList');
+  hiddenSelect.innerHTML = `<option value="" disabled selected>Pilih beli dimana</option>`;
+  desaPopupList.innerHTML = "";
+  desaList.forEach(data=>{
+    const nama = data.nama || data.id;
+    const option = document.createElement("option");
+    option.value = nama;
+    option.dataset.lat = data.lat;
+    option.dataset.lng = data.lng;
+    hiddenSelect.appendChild(option);
+
+    const item = document.createElement("div");
+    item.className = "custom-option";
+    item.textContent = nama;
+    item.dataset.value = nama;
+    item.dataset.lat = data.lat;
+    item.dataset.lng = data.lng;
+    item.style.borderRadius="12px";
+    item.addEventListener("click",()=>{
+      desaTrigger.innerHTML = `${nama} <span class="arrow">⌄</span>`;
+      hiddenSelect.value = nama;
+      desaTujuan = { nama, lat: parseFloat(item.dataset.lat), lng: parseFloat(item.dataset.lng) };
+      hitungOngkirRanking();
+      updateSummary();
+      desaPopup.classList.remove("show");
+      document.querySelectorAll('#desaPopupList .custom-option').forEach(opt=>opt.classList.remove('selected'));
+      item.classList.add('selected');
+    });
+    desaPopupList.appendChild(item);
+  });
+  desaTrigger.innerHTML = `Pilih beli dimana <span class="arrow">⌄</span>`;
 }
 
 // ===== LOAD SEMUA DESA ===== //
@@ -180,9 +200,19 @@ function hitungJarak(lat1,lng1,lat2,lng2){
 }
 
 // ===== HITUNG ONGKIR RANKING ===== //
+let cacheJarak = {}; // { 'userLat,userLng:desaLat,dstLat': jarak }
+
 function hitungOngkirRanking(){
   if(!userLat || !userLng || !desaTujuan || !daftarDesa.length){ ongkir = 0; return; }
-  const desaDenganJarak = daftarDesa.map(desa => ({ ...desa, jarak: hitungJarak(userLat,userLng,desa.lat,desa.lng) }));
+  const desaDenganJarak = daftarDesa.map(desa => {
+    const key = `${userLat},${userLng}:${desa.lat},${desa.lng}`;
+    let jarak = cacheJarak[key];
+    if(jarak === undefined){
+      jarak = hitungJarak(userLat,userLng,desa.lat,desa.lng);
+      cacheJarak[key] = jarak;
+    }
+    return { ...desa, jarak };
+  });
   desaDenganJarak.sort((a,b)=> a.jarak - b.jarak);
   let ranking = desaDenganJarak.findIndex(d=>d.nama===desaTujuan.nama)+1;
   ongkir = ranking ? 3000 + ((ranking-1)*3000) : 0;
@@ -229,16 +259,20 @@ function closeServicePopup(){
 }
 
 // ===== UPDATE SUMMARY ===== //
+let debounceSummary = null;
 function updateSummary(){
-  if(!summary) return;
-  const mainOrder = document.getElementById('mainOrder')?.value.replace(/\n/g,'<br>') || '-';
-  const location = document.getElementById('locationSelect')?.value || '-';
-  const note = document.getElementById('note')?.value || '-';
-  summary.innerHTML = `<b>Layanan:</b> ${selectedService||'-'}<br>
+  if(debounceSummary) clearTimeout(debounceSummary);
+  debounceSummary = setTimeout(()=>{
+    if(!summary) return;
+    const mainOrder = document.getElementById('mainOrder')?.value.replace(/\n/g,'<br>') || '-';
+    const location = document.getElementById('locationSelect')?.value || '-';
+    const note = document.getElementById('note')?.value || '-';
+    summary.innerHTML = `<b>Layanan:</b> ${selectedService||'-'}<br>
 <b>Pesanan:</b> ${mainOrder}<br>
 <b>Beli Dimana:</b> ${location}<br>
 <b>Ongkir Otomatis:</b> Rp ${ongkir.toLocaleString('id-ID')}<br>
 <b>Catatan:</b> ${note}`;
+  },100); // debounce 100ms
 }
 
 // ===== TEXTAREA RESIZE ===== //
@@ -340,7 +374,11 @@ async function submitOrder() {
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
-      await db.collection("orders").add(orderData);
+      // Gunakan batch write kalau mau kirim banyak sekaligus
+      const batch = db.batch();
+      const orderRef = db.collection("orders").doc();
+      batch.set(orderRef, orderData);
+      await batch.commit();
 
       // Tampilkan pesan sukses
       PopupManager.showCustom("Pesanan berhasil dikirim 🤩");

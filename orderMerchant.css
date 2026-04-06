@@ -1,0 +1,362 @@
+:root {
+  --bg-main: #FFF7ED;
+  --text-main: #7C2D12;
+  --card-bg: #ffffff;
+  --border-soft: #FED7AA;
+  --text-secondary: #374151;
+  --text-muted: #6B7280;
+  --accent: #FB923C;
+  --active-bg: #FFF1E6;
+}
+/* ========================= */
+/* VIEW ORDER MERCHANT FIX   */
+/* ========================= */
+#view-orderMerchant{
+  overflow-x:hidden;
+}
+#view-orderMerchant *{
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+#view-orderMerchant .view-inner,
+#view-orderMerchant .page-content{
+  display:block !important;
+  width:100%;
+}
+
+/* ========================= */
+/* CONTAINER                 */
+/* ========================= */
+#view-orderMerchant .container{
+  width:100%;
+  max-width:640px;
+  margin:auto;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+/* ========================= */
+/* HERO HEADER               */
+/* ========================= */
+#view-orderMerchant .merchant-hero{
+  width:100%;
+  height:220px;
+  background-size:cover;
+  background-position:center;
+  position:relative;
+  overflow:hidden;
+  border-bottom-left-radius:20px;
+  border-bottom-right-radius:20px;
+}
+#view-orderMerchant .merchant-hero::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.2),
+    rgba(0,0,0,0.35)
+  );
+}
+
+/* ========================= */
+/* BACK BUTTON               */
+/* ========================= */
+#view-orderMerchant .back-btn{
+  position:absolute;
+  top:16px;
+  left:16px;
+  width:38px;
+  height:38px;
+  background:var(--card-bg);
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 4px 12px rgba(0,0,0,0.15);
+  cursor:pointer;
+  z-index:10;
+}
+#view-orderMerchant .back-btn svg{
+  width:20px;
+  height:20px;
+  color:var(--accent);
+}
+
+/* ========================= */
+/* MERCHANT CARD             */
+/* ========================= */
+#view-orderMerchant .merchant-card{
+  width:100%;
+  background:var(--card-bg);
+  border-radius:22px;
+  padding:18px;
+  border:1px solid var(--border-soft);
+  box-shadow:0 10px 30px rgba(0,0,0,0.06);
+  margin-top:-70px;
+  position:relative;
+  z-index:5;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* ========================= */
+/* STORE NAME                */
+/* ========================= */
+#view-orderMerchant .merchant-card h1{
+  font-size:22px;
+  font-weight:800;
+  color:var(--text-main);
+  letter-spacing:-0.2px;
+}
+
+/* ========================= */
+/* DESCRIPTION               */
+/* ========================= */
+#view-orderMerchant .merchant-card h3{
+  font-size:14px;
+  font-weight:500;
+  color:var(--text-secondary);
+  line-height:1.4;
+}
+
+/* ========================= */
+/* DIVIDER LINE              */
+/* ========================= */
+#view-orderMerchant .merchant-divider{
+  width:100%;
+  height:1px;
+  background:var(--border-soft);
+  opacity:0.7;
+}
+
+/* ========================= */
+/* ADDRESS                   */
+/* ========================= */
+#view-orderMerchant .merchant-address{
+  font-size:13px;
+  color:var(--text-muted);
+  line-height:1.5;
+  display:flex;
+  align-items:flex-start;
+  gap:3px;
+}
+
+/* icon lokasi kecil */
+#view-orderMerchant .merchant-address::before{
+  content:"🏪";
+  font-size:13px;
+  opacity:0.7;
+}
+
+/* ========================= */
+/* ORDER CARD                */
+/* ========================= */
+/* ========================= */
+/* ALIGN TEXT LEFT FIX       */
+/* ========================= */
+#view-orderMerchant .merchant-card,
+#view-orderMerchant .order-card{
+  text-align:left;
+  align-items:flex-start;
+}
+#view-orderMerchant .merchant-card h1,
+#view-orderMerchant .merchant-card h3,
+#view-orderMerchant .merchant-address,
+#view-orderMerchant .order-title,
+#view-orderMerchant .form-label{
+  text-align:left;
+  width:100%;
+}
+#view-orderMerchant .order-card{
+  width:100%;
+  background:var(--card-bg);
+  border-radius:20px;
+  padding:18px;
+  border:1px solid var(--border-soft);
+  box-shadow:0 6px 20px rgba(0,0,0,0.05);
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+/* ========================= */
+/* TITLE                     */
+/* ========================= */
+#view-orderMerchant .order-title{
+  font-size:20px;
+  font-weight:700;
+  color:var(--text-main);
+}
+
+/* ========================= */
+/* LABEL                     */
+/* ========================= */
+#view-orderMerchant .form-label{
+  font-size:15px;
+  font-weight:600;
+  color:var(--text-main);
+}
+
+/* ========================= */
+/* TEXTAREA                  */
+/* ========================= */
+#view-orderMerchant textarea{
+  width:100%;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid var(--border-soft);
+  font-size:15px;
+  resize:none;
+  min-height:46px;
+  background:var(--card-bg);
+  color:var(--text-main);
+  line-height:1.5;
+}
+#view-orderMerchant textarea::placeholder{
+  color:var(--text-muted);
+}
+
+/* ========================= */
+/* LOCATION PREVIEW          */
+/* ========================= */
+#view-orderMerchant .location-preview{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+#view-orderMerchant .location-text{
+  width:100%;
+  background:var(--active-bg);
+  border:1px solid var(--border-soft);
+  padding:12px;
+  border-radius:12px;
+  font-size:14px;
+  color:var(--text-main);
+  line-height:1.4;
+}
+
+/* ========================= */
+/* CHANGE LOCATION BUTTON    */
+/* ========================= */
+#view-orderMerchant .location-change-btn{
+  width:100%;
+  height:40px;
+  border-radius:12px;
+  border:none;
+  background:var(--accent);
+  color:white;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  transition:0.15s;
+}
+#view-orderMerchant .location-change-btn:active{
+  transform:scale(0.96);
+}
+#view-orderMerchant .location-change-btn.loading{
+  opacity:0.7;
+}
+
+/* ========================= */
+/* SUBMIT BUTTON             */
+/* ========================= */
+#view-orderMerchant .send-order-btn{
+  width:100%;
+  height:46px;
+  border:none;
+  border-radius:28px;
+  background: #24ac02;
+  color:white;
+  font-size:16px;
+  font-weight:800;
+  cursor:pointer;
+  transition:0.2s;
+}
+#view-orderMerchant .send-order-btn:active{
+  transform:scale(0.96);
+}
+
+/* ========================= */
+/* RECEIPT DIGITAL           */
+/* ========================= */
+#view-orderMerchant .receipt-card{
+  width:100%;
+  background:#fafafa;
+  border-radius:14px;
+  padding:14px;
+  border:1px solid #e6e6e6;
+  font-family:monospace;
+  font-size:13px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.05);
+}
+
+/* BRAND */
+#view-orderMerchant .receipt-brand{
+  text-align:center;
+  font-size:16px;
+  font-weight:800;
+  letter-spacing:1px;
+}
+#view-orderMerchant .receipt-sub{
+  text-align:center;
+  font-size:11px;
+  color:#777;
+}
+
+/* DASH LINE */
+#view-orderMerchant .receipt-line{
+  border-bottom:1px dashed #bbb;
+  margin:4px 0;
+}
+
+/* ROW */
+#view-orderMerchant .receipt-row{
+  display:flex;
+  justify-content:space-between;
+  font-size:12.5px;
+  line-height:1.4;
+}
+#view-orderMerchant .receipt-row span:last-child{
+  text-align:right;
+  max-width:60%;
+  word-break:break-word;
+}
+
+/* BLOCK */
+#view-orderMerchant .receipt-block{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+#view-orderMerchant .receipt-label{
+  font-size:11px;
+  color:#777;
+}
+#view-orderMerchant .receipt-text{
+  font-size:12.5px;
+  line-height:1.35;
+  white-space:pre-wrap;
+}
+
+/* STATUS */
+#view-orderMerchant .status-draft{
+  font-weight:700;
+  color:var(--accent);
+}
+
+/* FOOTER */
+#view-orderMerchant .receipt-footer{
+  text-align:center;
+  font-size:11px;
+  color:#777;
+  margin-top:4px;
+}

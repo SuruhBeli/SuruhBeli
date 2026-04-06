@@ -19,82 +19,6 @@
   --popup-desc:#8a6a58;
   --dot-inactive:#ccc;
 }
-.page-content {
-  padding-bottom: 100px;
-}
-/* ===== LOGO TOP ===== */
-.logo-top {
-  position: fixed;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 5px 22px;
-  border-radius: 999px;
-  z-index: 9999;
-  background: transparent;
-}
-.logo-top::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-  left: -34px;
-  right: -34px;
-  top: 1px;
-  bottom: 1px;
-  background: #FED7AA;
-  /* AWAL: kecil di tengah + transparan */
-  opacity: 0;
-  transform: scaleX(0.2);
-  transform-origin: center;
-  /* animasi halus, no bounce */
-  transition: 
-    opacity 0.25s ease,
-    transform 0.35s ease;
-  z-index: -1; /* di belakang teks */
-}
-.logo-top.scrolled::before {
-  opacity: 1;
-  transform: scaleX(1); /* melebar kiri & kanan dari tengah */
-}
-.logo-top img {
-  width: 28px;
-  height: 28px;
-  object-fit: cover;
-}
-.logo-top span {
-  font-weight: 700;
-  font-size: 16px;
-  color: #7C2D12;
-  white-space: nowrap;
-}
-.logo-top, #scrollHeader {
-  transition: opacity 0.25s ease;
-}
-/* ===== HEADER (non aktif) ===== */
-.scroll-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 30px;
-  background: var(--accent);
-  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  z-index: 1000;
-  border-radius: 0 0 12px 12px;
-  opacity: 0;
-  transition: opacity 0.1s ease;
-}
-
 /* ================= SKELETON BASE ================= */
 .skeleton {
   position: relative;
@@ -103,21 +27,40 @@
 }
 
 /* ================= SHINE EFFECT ================= */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #e5e7eb; /* abu soft */
+  border-radius: 8px;
+}
+
+/* shimmer halus banget */
 .skeleton::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: -150%;
-  width: 60%;
-  height: 100%;
+  inset: 0;
   background: linear-gradient(
-    120deg,
-    rgba(255,255,255,0) 0%,
-    var(--banner-shadow) 50%,
-    rgba(255,255,255,0) 100%
+    90deg,
+    transparent,
+    rgba(255,255,255,0.5),
+    transparent
   );
-  transform: skewX(-20deg);
-  animation: skeletonShine 2.8s infinite;
+  animation: skeletonShimmer 1.4s infinite;
+}
+
+/* animasi halus */
+@keyframes skeletonShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+#heroSkeleton {
+  width: 100%;
+  height: 220px;
+  border-radius: 0;
+}
+.banner-skeleton {
+  height: 150px;
+  border-radius: 10px;
 }
 
 /* ================= ANIMATION ================= */
@@ -299,6 +242,169 @@ width: 14px; /* modern pill style tapi tidak lebay */
 border-radius: 8px;
 background: var(--accent);
 opacity: 1;
+}
+
+/* ===== TEXT SKELETON ===== */
+.sk-text {
+  height: 10px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+}
+
+.sk-text.title {
+  width: 60%;
+  height: 12px;
+}
+
+.sk-text.desc {
+  width: 90%;
+}
+
+.sk-text.small {
+  width: 40%;
+}
+
+/* ===== FOTO SKELETON (BIAR BULAT) ===== */
+.toko-foto.skeleton {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+}
+.service-icon.skeleton {
+  background: #e5e7eb;
+  border-radius: 10px;
+}
+/*===== LIST TOKO =====*/
+.card-toko-wrapper{
+  background:white;
+  border-radius:16px;
+  padding:15px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.06);
+  margin-top:10px;
+}
+.toko-tittle{
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 7px;
+  margin-bottom:14px;
+  color: var(--text-main);
+  text-align: center;
+}
+/*SEARCH TOKO*/
+.toko-search{
+  position:relative;
+  margin-bottom:14px;
+}
+
+.toko-search input{
+  width:100%;
+  padding:15px 14px 15px 40px;
+  border-radius:20px;
+  border:1px solid #eee;
+  font-size:16px;
+  outline:none;
+  background:#fafafa;
+  transition:all .2s ease;
+}
+.toko-search input:focus{
+  background:white;
+  border-color:#16a34a;
+}
+.search-icon{
+  position:absolute;
+  left:12px;
+  top:50%;
+  transform:translateY(-50%);
+  width:18px;
+  height:18px;
+  color:#888;
+  pointer-events:none;
+}
+#searchToko::-webkit-search-cancel-button{
+  display:none;
+}
+#listToko{
+  margin-top:10px;
+}
+.toko-card{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:14px;
+  margin-bottom:10px;
+
+  background:white;
+  border-radius:14px;
+  border-bottom:1px solid #f1f1f1;
+  box-shadow:0 3px 10px rgba(0,0,0,0.05);
+
+  opacity:0;
+  transform:translateY(15px);
+  transition:all .35s ease;
+}
+.toko-card:last-child{
+  border-bottom:none;
+}
+/* muncul animasi */
+.toko-card.show{
+  opacity:1;
+  transform:translateY(0);
+}
+
+/* klik effect */
+.toko-card:active{
+  transform:scale(0.97);
+}
+
+.toko-foto{
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  object-fit:cover;
+  flex-shrink:0;
+}
+
+.toko-info{
+  flex:1;
+}
+
+.toko-nama{
+  font-size:16px;
+  font-weight:700;
+  margin-bottom:4px;
+}
+
+.toko-deskripsi{
+  font-size:13px;
+  color:#777;
+  line-height:1.3;
+}
+.toko-alamat-ongkir {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 0.9em;
+  color: #555;
+  gap: 4px;
+}
+.toko-alamat-ongkir .icon-location {
+  width: 16px;
+  height: 16px;
+  fill: #f44336; /* warna ikon */
+}
+.btn-pesan{
+  background:#16a34a;
+  color:white;
+  border:none;
+  padding:6px 14px;
+  border-radius:8px;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.btn-pesan:active{
+  transform:scale(.92);
 }
 
 /* ===== TOMBOL ORDER ===== */

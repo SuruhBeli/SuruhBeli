@@ -17,6 +17,114 @@ html, body {
   padding-bottom: 100px;
   overflow-x: hidden;
 }
+/* ===== LOGO TOP ===== */
+.logo-top {
+  position: fixed;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 5px 22px;
+  border-radius: 999px;
+  z-index: 9999;
+  background: transparent;
+}
+.logo-top::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  left: -34px;
+  right: -34px;
+  top: 1px;
+  bottom: 1px;
+  background: #FED7AA;
+  /* AWAL: kecil di tengah + transparan */
+  opacity: 0;
+  transform: scaleX(0.2);
+  transform-origin: center;
+  /* animasi halus, no bounce */
+  transition: 
+    opacity 0.25s ease,
+    transform 0.35s ease;
+  z-index: -1; /* di belakang teks */
+}
+.logo-top.scrolled::before {
+  opacity: 1;
+  transform: scaleX(1); /* melebar kiri & kanan dari tengah */
+}
+.logo-top img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+}
+.logo-top span {
+  font-weight: 700;
+  font-size: 16px;
+  color: #7C2D12;
+  white-space: nowrap;
+}
+.logo-top, #scrollHeader {
+  transition: opacity 0.25s ease;
+}
+/* ===== HEADER (khusu view home) ===== */
+.scroll-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 30px;
+  background: #FB923C;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  z-index: 1000;
+  border-radius: 0 0 12px 12px;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+/* ===== HEADER GLOBAL ===== */
+.headerTop{
+  position: fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:60px;
+  display:flex;
+  align-items:center;
+  padding:0 16px;
+  background: #FB923C;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  z-index:999;
+  /* tambahan animasi */
+  opacity:1;
+  transform:translateY(0);
+  transition:opacity .25s ease, transform .25s ease;
+}
+.headerTop.hidden{
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(-100%);
+}
+.header-title{
+  display:none;
+  font-size:18px;
+  font-weight:600;
+}
+.header-title.active{
+  display:block;
+}
+
 .view {
   position: absolute;
   top: 0;
@@ -24,35 +132,49 @@ html, body {
   width: 100%;
   height: 100%;
   overflow-y: auto;
-  box-sizing: border-box;
   background: #FFF7ED;
+
   opacity: 0;
-  transform: scale(0.98);
   pointer-events: none;
-  transition: transform 0.35s ease, opacity 0.35s ease;
   z-index: 1;
-  will-change: transform, opacity;
-  backface-visibility: hidden; 
+
+  transition: opacity 0.2s ease-in-out;
 }
+
+/* aktif */
 .view.active {
   opacity: 1;
-  transform: scale(1);
-  pointer-events: auto;
-  z-index: 2;
-}
-.view.zoom-out {
-  opacity: 0;
-  transform: scale(0.98);  /* tetap minor scale */
-  pointer-events: none;
-  z-index: 1;
-}
-.view.zoom-in {
-  opacity: 1;
-  transform: scale(1);
   pointer-events: auto;
   z-index: 2;
 }
 
+/* View lama → membesar & fade out */
+.view.zoom-out {
+  opacity: 0;
+  transform: scale(1.05); /* membesar */
+  pointer-events: none;
+  z-index: 0;
+  transition: transform 0.7s cubic-bezier(0.25,0.1,0.25,1), 
+              opacity 0.7s cubic-bezier(0.25,0.1,0.25,1);
+}
+
+/* View baru → dari besar → normal (zoom-in efek terbalik) */
+.view.active.zoom-in {
+  opacity: 1;
+  transform: scale(1); /* normal */
+  pointer-events: auto;
+  z-index: 2;
+  transition: transform 0.7s cubic-bezier(0.25,0.1,0.25,1), 
+              opacity 0.7s cubic-bezier(0.25,0.1,0.25,1);
+}
+.view-inner{
+  width:100%;
+}
+
+.page-content {
+  padding-bottom: 100px;
+  width:100%;
+}
 /* NAVBAR */
 .navbar-bottom {
   position: fixed;

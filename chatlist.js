@@ -24,21 +24,21 @@ window.addEventListener("app-ready", async () => {
   const currentUser = window.currentUser;
   if (!currentUser) return;
 
-  // Reset listener jika ada
+  // Reset listener chat rooms jika ada
   if (window.unsubscribeRooms) {
     window.unsubscribeRooms();
     window.unsubscribeRooms = null;
   }
 
-  // Status online realtime
+  // 🔹 Status online realtime diri sendiri
   const myStatusRef = rtdb.ref("status/" + currentUser.uid);
   myStatusRef.set({ online: true, lastSeen: firebase.database.ServerValue.TIMESTAMP });
   myStatusRef.onDisconnect().set({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP });
 
-  // Load cached chats dulu
+  // 🔹 Load cached chats dulu
   await loadCachedChats();
 
-  // Listen chat rooms realtime
+  // 🔹 Listener chat rooms realtime
   window.unsubscribeRooms = db.collection("chatRooms")
     .where(`participants.${currentUser.uid}`, "==", true)
     .onSnapshot(async snapshot => {
@@ -79,49 +79,53 @@ window.addEventListener("app-ready", async () => {
         // Ambil data partner async
         fetchPartner(partnerUid, roomId);
 
-        // Listen pesan terbaru
+        // Listen pesan terakhir
         if (!window.messageListeners[roomId]) {
-          const unsubscribeMsg = db.collection("chatRooms")
+          const messagesRef = db.collection("chatRooms")
             .doc(roomId)
             .collection("messages")
             .orderBy("createdAt", "desc")
-            .limit(15)
-            .onSnapshot(msgSnap => {
-              const docs = msgSnap.docs.filter(d => !(d.data().deletedFor?.[currentUser.uid]));
-              if (!docs.length) return;
+            .limit(1);
 
-              const msg = docs[0].data();
-              lastMessageIdMap[roomId] = msg.id;
-              const lastMsgText = msg.senderId === currentUser.uid ? `Anda: ${msg.text||"Pesan"}` : msg.text||"Pesan";
-              const ts = msg.createdAt?.toDate()?.getTime() || Date.now();
+          const unsubscribeMsg = messagesRef.onSnapshot(msgSnap => {
+            if (msgSnap.empty) return;
+            const msg = msgSnap.docs[0].data();
+            lastMessageIdMap[roomId] = msg.id;
+            const lastMsgText = msg.senderId === currentUser.uid ? `Anda: ${msg.text||"Pesan"}` : msg.text||"Pesan";
+            const ts = msg.createdAt?.toDate()?.getTime() || Date.now();
 
+            // Render hanya jika berubah
+            const el = document.getElementById(`chat_${roomId}`);
+            if (!el || el.querySelector(`#msg_${roomId}`).innerText !== lastMsgText) {
               renderChat({ id: roomId, lastMessage: lastMsgText, timestamp: ts });
-              saveChat({
-                id: roomId,
-                partnerName: document.querySelector(`#chat_${roomId} .chat-name`)?.innerText || "User",
-                initials: document.querySelector(`#chat_${roomId} .chat-photo`)?.innerText || "U",
-                lastMessage: lastMsgText,
-                timestamp: ts
-              });
+              saveChat({ id: roomId, lastMessage: lastMsgText, timestamp: ts });
+            }
 
-              // Update unread
-              if (!selectedChats.has(roomId)) {
-                if (!lastReadMap[roomId]) {
-                  lastReadMap[roomId] = msg.id; 
-                  localStorage.setItem("lastReadMap", JSON.stringify(lastReadMap));
-                  unreadMap[roomId] = 0;
-                } else {
-                  unreadMap[roomId] = lastReadMap[roomId] === msg.id ? 0 : (unreadMap[roomId] || 1);
-                }
-                updateUnread(roomId);
-              }
-            });
+            // Update unread
+            if (!selectedChats.has(roomId)) {
+              unreadMap[roomId] = lastReadMap[roomId] === msg.id ? 0 : (unreadMap[roomId] || 1);
+              updateUnread(roomId);
+            }
+          });
+
           window.messageListeners[roomId] = unsubscribeMsg;
         }
       }
 
       isInitialLoading = false;
     });
+
+  // 🔹 Listener realtime online partner
+  db.collection("users").onSnapshot(snapshot => {
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      // cari room yang sudah ada di cache kita
+      const roomId = Object.keys(data.rooms || {}).find(rid => window.roomCache[rid]);
+      if (roomId) {
+        updateOnline(roomId, data.online);
+      }
+    });
+  });
 });
 
 // ===== LOAD CACHED CHAT ===== //
@@ -162,6 +166,15 @@ function saveChat(chat) {
 }
 
 // ===== FETCH PARTNER ===== //
+async function getPartnerCache(uid){
+  if(!window.dbIDB) return null;
+  return new Promise(resolve=>{
+    const tx = dbIDB.transaction("partners","readonly");
+    tx.objectStore("partners").get(uid).onsuccess = e=>{
+      resolve(e.target.result || null);
+    };
+  });
+}
 async function fetchPartner(uid, roomId) {
   if (!window.currentUser) return;
 
@@ -174,7 +187,12 @@ async function fetchPartner(uid, roomId) {
     if (!doc.exists) doc = await db.collection("kurir").doc(uid).get();
     const name = doc.exists ? doc.data().name || doc.data().nama || "User" : "User";
     const initials = name.split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
-
+    // coba load partner dari cache dulu
+    const cachedPartner = await getPartnerCache(uid);
+    if(cachedPartner){
+      renderChat({ id: roomId, partnerName: cachedPartner.name, initials: cachedPartner.initials });
+      updateOnline(roomId, cachedPartner.online);
+    }
     if(window.roomCache[roomId]) {
       renderChat({ id: roomId, partnerName: name, initials });
       if (!lastReadMap[roomId] || lastReadMap[roomId] !== lastMessageIdMap[roomId]) {
@@ -235,25 +253,29 @@ function updateOnline(roomId,isOnline){
 
 // ===== RENDER CHAT ===== //
 function renderChat(chat) {
-  if(chat.participants && !chat.participants[window.currentUser.uid]) return;
+  // skip kalau bukan peserta
+  if (chat.participants && !chat.participants[window.currentUser.uid]) return;
 
   let el = document.getElementById("chat_" + chat.id);
-  if(!el){
+
+  if (!el) {
+    // buat elemen baru
     el = document.createElement("div");
     el.className = "chat-item";
     el.id = "chat_" + chat.id;
+
     el.innerHTML = `
       <div class="chat-photo-wrapper" style="position:relative;">
-        <div class="chat-photo">${chat.initials||"U"}</div>
+        <div class="chat-photo">${chat.initials || "U"}</div>
         <span class="online-badge" id="online_${chat.id}"></span>
       </div>
       <div class="chat-details">
         <div class="chat-top">
-          <div class="chat-name">${chat.partnerName||"Memuat..."}</div>
+          <div class="chat-name">${chat.partnerName || "Memuat..."}</div>
           <div class="chat-time">${formatTime(chat.timestamp)}</div>
         </div>
         <div class="chat-bottom">
-          <div class="chat-last-message" id="msg_${chat.id}">${chat.lastMessage||"Memuat pesan..."}</div>
+          <div class="chat-last-message" id="msg_${chat.id}">${chat.lastMessage || "Memuat pesan..."}</div>
           <div class="unread-badge" id="unread_${chat.id}">0</div>
         </div>
       </div>
@@ -261,35 +283,49 @@ function renderChat(chat) {
 
     // touch untuk selection mode
     let pressTimer;
-    el.addEventListener("touchstart", ()=> pressTimer=setTimeout(()=>enterSelectionMode(chat.id),400));
-    el.addEventListener("touchend", ()=>clearTimeout(pressTimer));
-    el.addEventListener("touchmove", ()=>clearTimeout(pressTimer));
+    el.addEventListener("touchstart", () => pressTimer = setTimeout(() => enterSelectionMode(chat.id), 400));
+    el.addEventListener("touchend", () => clearTimeout(pressTimer));
+    el.addEventListener("touchmove", () => clearTimeout(pressTimer));
 
-    el.addEventListener("click", ()=>{
-      if(selectionMode){ 
-        toggleSelect(chat.id, el); 
-        return; 
+    el.addEventListener("click", () => {
+      if (selectionMode) {
+        toggleSelect(chat.id, el);
+        return;
       }
-      // 🔹 Simpan last message yang dibaca
+
+      // simpan last read
       lastReadMap[chat.id] = lastMessageIdMap[chat.id] || "";
       localStorage.setItem("lastReadMap", JSON.stringify(lastReadMap));
 
-      // 🔹 Reset badge
+      // reset unread
       unreadMap[chat.id] = 0;
       updateUnread(chat.id);
 
-      window.location.href = `chat.html?roomId=${chat.id}`;
+      // SPA event
+      window.dispatchEvent(new CustomEvent("goto-chatRoom", { detail: { roomId: chat.id } }));
     });
 
-    chatListContainer.appendChild(el);
+    // prepend supaya pinned tetap di atas
+    if (pinnedRoomId === chat.id) {
+      chatListContainer.prepend(el);
+      applyPinUI(chat.id);
+    } else {
+      chatListContainer.appendChild(el);
+    }
   } else {
-    if(chat.partnerName) el.querySelector(".chat-name").innerText = chat.partnerName;
-    if(chat.lastMessage) el.querySelector(`#msg_${chat.id}`).innerText = chat.lastMessage;
-    if(chat.timestamp) el.querySelector(".chat-time").innerText = formatTime(chat.timestamp);
+    // update hanya kalau ada perubahan
+    const nameEl = el.querySelector(".chat-name");
+    const msgEl = el.querySelector(`#msg_${chat.id}`);
+    const timeEl = el.querySelector(".chat-time");
 
-    if(pinnedRoomId===chat.id) applyPinUI(chat.id);
+    if (chat.partnerName && nameEl.innerText !== chat.partnerName) nameEl.innerText = chat.partnerName;
+    if (chat.lastMessage && msgEl.innerText !== chat.lastMessage) msgEl.innerText = chat.lastMessage;
+    if (chat.timestamp && timeEl.innerText !== formatTime(chat.timestamp)) timeEl.innerText = formatTime(chat.timestamp);
+
+    if (pinnedRoomId === chat.id) applyPinUI(chat.id);
   }
 
+  // init badge unread
   initUnreadBadge(chat.id);
 }
 

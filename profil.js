@@ -58,7 +58,7 @@ function setDefaultProfile(){
 // ===== LOAD DATA PROFIL USER (Realtime) =====
 window.initProfil = async function() {
   console.log("👤 Profil page init");
-
+  
   await loadHeaderProfil();
 
   const userId = window.userId; // Auth ikut index.js

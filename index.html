@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -16,6 +17,8 @@
 <link rel="stylesheet" href="chatlist.css">
 <link rel="stylesheet" href="profil.css">
 <link rel="stylesheet" href="order.css">
+<link rel="stylesheet" href="orderMerchant.css">
+<link rel="stylesheet" href="chat.css">
 <title>SuruhBeli</title>
 
 <!-- Firebase -->
@@ -28,11 +31,19 @@
 </head>
 <body>
 <div id="app">
+  <!--- SCROL HEADER HOME --->
   <div class="logo-top">
     <img src="logo.png" alt="Logo" />
     <span>SuruhBeli</span>
   </div>
   <div class="scroll-header" id="scrollHeader"></div>
+  
+  <!--- HEADER GLOBAL (order, aktivitas, chatlist) --->
+  <div class="headerTop" id="headerTop">
+    <div class="header-title" data-view="aktivitas">Pesanan</div>
+    <div class="header-title" data-view="chatlist">Chat</div>
+  </div>
+  
   <div class="view active" id="view-home">
     <div class="view-inner">
       <div class="page-content">
@@ -83,6 +94,28 @@
               </div>
               <div class="banner-dots" id="bannerDots"></div>
             </div>
+            <!-- ===== LIST TOKO ===== -->
+            <div class="card-toko-wrapper">
+              <div class="toko-tittle">Di Sekitarmu</div>
+              <!-- SEARCH -->
+            <div class="toko-search">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+                <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <input 
+                type="search"
+                id="searchToko"
+                placeholder="Cari toko dan jajanan di sekitar..."
+                autocomplete="off"
+                spellcheck="false">
+            </div>
+              <div id="listToko">
+                <div class="toko-card skeleton"></div>
+                <div class="toko-card skeleton"></div>
+                <div class="toko-card skeleton"></div>
+              </div>
+            </div>
             <!-- ======= FOOTER ======= -->
             <div class="footer">
               <div id="lottieAnimation" class="lottie-cta skeleton"></div>
@@ -97,7 +130,6 @@
   <div class="view" id="view-aktivitas">
     <div class="view-inner">
       <div class="page-content">
-        <div class="header">Pesanan</div>
         <div class="container">
           <!-- ===== TABS ===== -->
           <div class="tabs">
@@ -175,7 +207,6 @@
   <div class="view" id="view-chatlist">
     <div class="view-inner">
       <div class="page-content">
-        <div class="header">SuruhBeli</div>
         <!-- TOP ACTION BAR (MULTI SELECT) -->
         <div id="selectionBar" class="selection-bar">
           <button id="cancelSelect" class="sel-btn">Batal</button>
@@ -497,79 +528,244 @@
   </div>
   
   <div class="view" id="view-order">
-    <div class="page-content">
-      <!-- HERO HEADER -->
-      <div class="hero" id="heroHeader">
-        <div class="back-btn" onclick="goBack()" title="Kembali ke Beranda">
-          <svg viewBox="0 0 24 24">
-            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" fill="none"
-              stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-      </div>
-      <div class="container">
-        <div class="card lokasi-card">
-          <div class="card-header">
-            <span><strong>Pilih Lokasi Kamu</strong></span>
+    <div class="view-inner">
+      <div class="page-content">
+        <!-- HERO HEADER -->
+        <div class="hero" id="heroHeader">
+          <div class="back-btn" onclick="goBack()" title="Kembali ke Beranda">
+            <svg viewBox="0 0 24 24">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" fill="none"
+                stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </div>
         </div>
-        <div class="lokasi-content">
-            <div class="lokasi-text" id="lokasiText">
-              <svg viewBox="0 0 24 24" width="20" height="20">
-                <path d="M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
-              </svg>
-              Mengambil lokasi default...
+        <div class="container">
+          <div class="card lokasi-card">
+            <div class="card-header">
+              <span><strong>Pilih Lokasi Kamu</strong></span>
             </div>
-        
-            <button type="button" class="btn-lokasi" id="btnAmbilLokasi"> Pakai lokasi saya saat ini
-            </button>
           </div>
-           <!-- Teks kecil tambahan -->
-          <div class="lokasi-note">
-              *Pesanan akan diantarkan sesuai lokasi yang anda pilih*
-            </div>
-        <div class="section-title">Detail Pesanan</div>
-        
-        <div class="order-form" id="orderForm">
-      
-          <!-- PILIH LAYANAN (FORM STYLE TRIGGER) -->
-          <label>Pilih Layanan</label>
-          <div class="service-field" onclick="openServicePopup()">
-            <span id="servicePlaceholder">Pilih layanan dulu 😊</span>
-            <span class="arrow">⌄</span>
-          </div>
-      
-          <!-- PESANAN -->
-          <label for="mainOrder">Pesanan</label>
-          <textarea id="mainOrder" placeholder="Pilih layanan dulu ya 😊"></textarea>
-      
-          <!-- BELI DIMANA -->
-          <label>Beli Dimana?</label>
+          <div class="lokasi-content">
+              <div class="lokasi-text" id="lokasiText">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                  <path d="M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
+                </svg>
+                Mengambil lokasi default...
+              </div>
           
-          <div class="custom-select" id="customDesa">
-            <div class="custom-select-trigger" id="desaTrigger">
-              Memuat daftar desa...
+              <button type="button" class="btn-lokasi" id="btnAmbilLokasi"> Pakai lokasi saya saat ini
+              </button>
+            </div>
+             <!-- Teks kecil tambahan -->
+            <div class="lokasi-note">
+                *Pesanan akan diantarkan sesuai lokasi yang anda pilih*
+              </div>
+          <div class="section-title">Detail Pesanan</div>
+          
+          <div class="order-form" id="orderForm">
+        
+            <!-- PILIH LAYANAN (FORM STYLE TRIGGER) -->
+            <label>Layanan</label>
+            <div class="service-field" onclick="openServicePopup()">
+              <span id="servicePlaceholder">Pilih layanan dulu 😊</span>
               <span class="arrow">⌄</span>
             </div>
+        
+            <!-- PESANAN -->
+            <label for="mainOrder">Tulis Pesanan</label>
+            <textarea id="mainOrder" placeholder="Pilih layanan dulu ya 😊"></textarea>
+        
+            <!-- BELI DIMANA -->
+            <label>Beli Dimana?</label>
+            
+            <div class="custom-select" id="customDesa">
+              <div class="custom-select-trigger" id="desaTrigger">
+                Memuat daftar desa...
+                <span class="arrow">⌄</span>
+              </div>
+            
+              <div class="custom-options" id="desaOptions">
+                <!-- Diisi Firestore -->
+              </div>
+            </div>
+            
+            <select id="locationSelect" style="display:none;"></select>
+        
+            <!-- CATATAN -->
+            <label for="note">Catatan Tambahan (Biar Tidak Salah)</label>
+            <textarea id="note" placeholder="Tulis keterangan lengkap yah"></textarea>
+          </div>
+          <!-- CTA -->
+          <button class="btn-submit" onclick="submitOrder()">Kirim Pesanan</button>
+          <!-- RINGKASAN -->
+          <div class="section-title">Ringkasan</div>
+          <div class="summary" id="summaryText">
+            Belum ada order yang dipilih.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="view" id="view-orderMerchant">
+    <div class="view-inner">
+      <div class="page-content">
+  
+        <!-- HERO HEADER TOKO -->
+        <div class="merchant-hero" id="merchantHero">
+          <div class="back-btn" onclick="goBack()">
+            <svg viewBox="0 0 24 24">
+              <path d="M15 18l-6-6 6-6"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+  
+        <div class="container">
+        
+          <!-- CARD INFO TOKO -->
+          <div class="merchant-card">
           
-            <div class="custom-options" id="desaOptions">
-              <!-- Diisi Firestore -->
+            <div class="merchant-info">
+          
+              <h1 id="merchantName">Memuat toko...</h1>
+          
+              <h3 id="merchantDesc">
+                Deskripsi toko
+              </h3>
+          
+            </div>
+          
+            <div class="merchant-divider"></div>
+          
+            <div id="merchantAddress" class="merchant-address">
+              Alamat toko
+            </div>
+          
+          </div>
+  
+          <!-- CARD FORM PESANAN -->
+          <div class="order-card">
+          
+            <h2 class="order-title">
+              Tulis Pesanan Kamu
+            </h2>
+          
+            <!-- Pesanan -->
+            <label class="form-label">
+              Apa yang mau dibeli
+            </label>
+          
+            <textarea 
+              id="orderText"
+              class="auto-textarea"
+              placeholder="Tulis pesanan kamu"
+              rows="1"
+            ></textarea>
+          
+            <!-- Catatan -->
+            <label class="form-label">
+              Catatan
+            </label>
+          
+            <textarea
+              id="orderNote"
+              class="auto-textarea"
+              placeholder="catatan tambahan biar tidak salah"
+              rows="1"
+            ></textarea>
+          
+            <!-- Lokasi -->
+             <label class="form-label">
+            Antar kemana?
+            </label>
+            
+            <div class="location-preview">
+            
+              <div id="locationPreview" class="location-text">
+                Memuat lokasi...
+              </div>
+          
+              <button id="btnChangeLocation" class="location-change-btn">
+                Ganti Lokasi
+              </button>
+            
+            </div>
+          
+            <!-- Kirim -->
+            <button class="send-order-btn" id="sendOrderBtn">
+              Kirim Pesanan
+            </button>
+            
+            <h2 class="order-title">
+              Ringkasan Pesanan
+            </h2>
+          
+            <div class="receipt-card">
+            
+              <div class="receipt-brand">SuruhBeli</div>
+              <div class="receipt-sub">Struk Pesanan Digital</div>
+            
+              <div class="receipt-line"></div>
+            
+              <div class="receipt-row">
+                <span>ID Pesanan</span>
+                <span id="previewOrderId">#8Hhh5T</span>
+              </div>
+            
+              <div class="receipt-row">
+                <span>Waktu</span>
+                <span id="previewWaktu">-</span>
+              </div>
+            
+              <div class="receipt-row">
+                <span>Layanan</span>
+                <span id="previewLayanan">-</span>
+              </div>
+            
+              <div class="receipt-line"></div>
+            
+              <div class="receipt-row">
+                <span>Pesanan</span>
+                <span id="previewPesanan">-</span>
+              </div>
+            
+              <div class="receipt-row">
+                <span>Beli di</span>
+                <span id="previewToko">-</span>
+              </div>
+            
+              <div class="receipt-row">
+                <span>Catatan</span>
+                <span id="previewCatatan">-</span>
+              </div>
+            
+              <div class="receipt-line"></div>
+            
+              <div class="receipt-row">
+                <span>Ongkir</span>
+                <span id="previewOngkir">Rp 21.000</span>
+              </div>
+            
+              <div class="receipt-row">
+                <span>Status</span>
+                <span class="status-draft">Dibuat</span>
+              </div>
+            
+              <div class="receipt-line"></div>
+            
+              <div class="receipt-footer">
+                Terima kasih telah menggunakan SuruhBeli
+              </div>
+            
             </div>
           </div>
           
-          <select id="locationSelect" style="display:none;"></select>
-      
-          <!-- CATATAN -->
-          <label for="note">Catatan Tambahan (Biar Tidak Salah)</label>
-          <textarea id="note" placeholder="Tulis keterangan lengkap yah"></textarea>
         </div>
-        <!-- CTA -->
-        <button class="btn-submit" onclick="submitOrder()">Kirim Pesanan</button>
-        <!-- RINGKASAN -->
-        <div class="section-title">Ringkasan</div>
-        <div class="summary" id="summaryText">
-          Belum ada order yang dipilih.
-        </div>
+  
       </div>
     </div>
   </div>
@@ -650,7 +846,100 @@
         Tutup
       </button>
     </div>
-  </div>  
+  </div>
+  
+  <div class="view" id="view-chatRoom">
+    <div class="view-inner">
+      <div class="page-content">
+        <div class="wrapper">
+          <div class="header">
+            <button id="backBtn" class="back-btn">
+              <!-- SVG panah kiri -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 19l-7-7 7-7"/>
+              </svg>
+            </button>
+            <div class="partner-info">
+              <div class="partner-photo" id="partnerPhoto">D</div>
+              <div class="partner-text">
+                <div class="partner-name" id="headerName">Driver</div>
+                <div class="header-status" id="headerStatus"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="chat-container" id="chatContainer">
+            <!-- 🔐 END TO END PLACEHOLDER -->
+            <div class="e2e-placeholder" id="e2ePlaceholder">
+              <div class="e2e-card">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path d="M12 2a4 4 0 00-4 4v2H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2v-8a2 2 0 00-2-2h-2V6a4 4 0 00-4-4zm-2 6V6a2 2 0 114 0v2h-4z"
+                        fill="currentColor"/>
+                </svg>
+                <span>
+                  Pesan terenkripsi secara end-to-end.
+                  Tidak seorang pun di luar chat ini dapat membacanya.
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="input-container">
+            <div class="input-row">
+              <div class="input-box">
+                <!-- 🔥 REPLY INLINE (PINDAH KE DALAM INPUT BOX) -->
+                <div id="replyPopup" class="reply-inline">
+                  <div class="reply-card"> <!-- 🔥 CARD DALAM -->
+                    <div class="reply-inline-content">
+                      <div class="reply-text" id="replyText"></div>
+                      <button id="cancelReplyBtn" class="reply-cancel">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="#FB923C" stroke-width="2" stroke-linecap="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/>
+                          <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <!-- BARIS INPUT -->
+                <div class="input-inner">
+                  <button class="emoji-btn" id="emojiBtn" aria-label="Emoji">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                      <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                      <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                    </svg>
+                  </button>
+                  <textarea id="messageInput" placeholder="Tulis pesan..." rows="1"></textarea>
+                </div>
+              </div>
+               <!-- SEND TETAP DI LUAR -->
+              <button id="sendBtn" class="send-btn" aria-label="Kirim">
+                <svg class="send-icon" viewBox="0 0 24 24">
+                  <path d="M3 20L21 12L3 4V9L15 12L3 15V20Z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <!-- EMOJI POPUP -->
+          <div id="emojiPopup"></div>
+          <!-- FLOATING SCROLL TO BOTTOM -->
+          <button id="scrollToBottomBtn" class="scroll-bottom-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24">
+              <path d="M12 5v14M12 19l-5-5M12 19l5-5"
+                stroke="#FB923C"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="navbar-bottom gempa-mode">
@@ -670,6 +959,8 @@
 <script src="chatlist.js"></script>
 <script src="profil.js"></script>
 <script src="order.js"></script>
+<script src="orderMerchant.js"></script>
+<script src="chat.js"></script>
 <script src="index.js"></script>
 
 </body>
