@@ -1,14 +1,14 @@
-const CACHE_NAME = "suruhbeli-v4";
+const CACHE_NAME = "suruhbeli-v5";
 
 const STATIC_ASSETS = [
-  "",
-  "index.html",
-  "style.css",
-  "index.js",
-  "chat.js",
-  "manifest.json",
-  "ikon-192.png",
-  "ikon-512.png"
+  "./",
+  "./index.html",
+  "./style.css",
+  "./index.js",
+  "./chat.js",
+  "./manifest.json",
+  "./ikon-192.png",
+  "./ikon-512.png"
 ];
 
 // ===== INSTALL =====
