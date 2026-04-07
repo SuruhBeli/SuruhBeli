@@ -9,7 +9,11 @@ html, body {
 }
 *, *::before, *::after {
   box-sizing: inherit;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
+
 #app {
   position: relative;
   width: 100%;

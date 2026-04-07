@@ -2,8 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -962,6 +961,23 @@
 <script src="orderMerchant.js"></script>
 <script src="chat.js"></script>
 <script src="index.js"></script>
+<script>
+document.addEventListener("contextmenu", e => e.preventDefault());
 
+document.addEventListener("touchstart", function(e) {
+  if (e.touches.length > 1) {
+    e.preventDefault(); // block pinch
+  }
+}, { passive: false });
+
+let lastTouchEnd = 0;
+document.addEventListener("touchend", function (e) {
+  let now = Date.now();
+  if (now - lastTouchEnd <= 300) {
+    e.preventDefault(); // block double tap zoom
+  }
+  lastTouchEnd = now;
+}, false);
+</script>
 </body>
 </html>
