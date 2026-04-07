@@ -298,13 +298,24 @@ document.getElementById("sendOrderBtn").onclick = async function(){
       }
       const orderData = {
         userId: firebase.auth().currentUser?.uid || null,
+      
+        // 🔥 IDENTITAS TOKO
         tokoId,
         beliDi: namaToko,
         layanan,
+      
+        // 🔥 DATA PESANAN
         pesanan: mainOrder,
         catatan,
+      
+        // 🔥 LOKASI USER (TUJUAN KURIR)
         lat: selectedLocation?.lat || null,
         lng: selectedLocation?.lng || null,
+      
+        // 🔥 LOKASI TOKO (SUMBER BELANJA)
+        tokoLat: tokoLat || null,
+        tokoLng: tokoLng || null,
+      
         ongkir: ongkir,
         status: "Dibuat",
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
