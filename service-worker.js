@@ -1,14 +1,14 @@
-const CACHE_NAME = "suruhbeli-v3";
+const CACHE_NAME = "suruhbeli-v4";
 
 const STATIC_ASSETS = [
-  "/",
-  "/index.html",
-  "/style.css",
-  "/index.js",
-  "/chat.js",
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png"
+  "",
+  "index.html",
+  "style.css",
+  "index.js",
+  "chat.js",
+  "manifest.json",
+  "ikon-192.png",
+  "ikon-512.png"
 ];
 
 // ===== INSTALL =====
@@ -45,7 +45,7 @@ self.addEventListener("fetch", (event) => {
 
   const req = event.request;
 
-  // 🔥 Firebase → selalu network
+  // 🔥 Firebase / API → selalu network
   if (req.url.includes("firebase") || req.url.includes("googleapis")) {
     event.respondWith(fetch(req));
     return;
