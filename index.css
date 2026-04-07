@@ -20,6 +20,12 @@ html, body {
   height: 100%;
   padding-bottom: 100px;
   overflow-x: hidden;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 /* ===== LOGO TOP ===== */
 .logo-top {
