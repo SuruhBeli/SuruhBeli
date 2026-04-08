@@ -1153,7 +1153,7 @@ function adjustChatPadding(forceScroll = false) {
   const inputHeight = inputContainer.offsetHeight;
   const headerHeight = header.offsetHeight;
   const extraTop = 8;     // jarak chat pertama ke header
-  const extraBottom = 16; // jarak chat terakhir ke input
+  const extraBottom = 70; // jarak chat terakhir ke input
   const viewportOffset = window.innerHeight - (window.visualViewport?.height || window.innerHeight);
   // Padding dinamis
   chatContainer.style.paddingTop = headerHeight + extraTop + "px";
