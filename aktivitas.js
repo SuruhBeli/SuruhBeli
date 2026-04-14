@@ -11,7 +11,6 @@ function saveBadgeSeen() {
   localStorage.setItem("badgeSeen", JSON.stringify(window.badgeSeen));
 }
 window.loadOrders = loadOrders;
-window.lastOrderStatus = {};
 
 /* ====== INIT (Dipanggil dari index.js) ======= */
 function initAktivitas() {
@@ -57,35 +56,6 @@ function updateAktivitasBadge() {
   } else {
     badge?.remove();
   }
-}
-function triggerOrderNotification(order) {
-
-  if (!window.OneSignal) return;
-
-  let title = "Update Pesanan";
-  let message = "";
-
-  switch(order.status) {
-    case "Diproses":
-      message = `Pesanan kamu sedang diproses 🚀`;
-      break;
-    case "Selesai":
-      message = `Pesanan kamu sudah selesai ✅`;
-      break;
-    case "Dibatalkan":
-      message = `Pesanan dibatalkan ❌`;
-      break;
-    default:
-      return; // status lain diabaikan
-  }
-
-  window.OneSignal.push(function() {
-    window.OneSignal.showNotification({
-      title: title,
-      message: message
-    });
-  });
-
 }
 /* ====== TAB SETUP ====== */
 function setupTabs() {
@@ -140,33 +110,19 @@ function loadOrders() {
     .orderBy("createdAt", "desc")
     .limit(pageSize)
   .onSnapshot(snapshot => {
-    if (snapshot.metadata.hasPendingWrites) return;
+  
     if (!snapshot.empty) {
   
       // 🔥 mapping SEKALI saja
       const newOrders = snapshot.docs.map(doc => {
         const data = doc.data();
-      
-        const order = {
+        return {
           id: doc.id,
           ...data,
           createdAt: data.createdAt?.toDate
             ? data.createdAt.toDate()
             : new Date(0)
         };
-      
-        // 🔥 CEK PERUBAHAN STATUS
-        const prevStatus = window.lastOrderStatus[order.id];
-        const currentStatus = order.status;
-      
-        if (prevStatus && prevStatus !== currentStatus) {
-          triggerOrderNotification(order);
-        }
-      
-        // simpan status terbaru
-        window.lastOrderStatus[order.id] = currentStatus;
-      
-        return order;
       });
   
       // 🔥 update state

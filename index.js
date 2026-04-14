@@ -53,30 +53,7 @@ firebase.auth().onAuthStateChanged(user => {
       displayName: user.displayName || "User"
     };
     window.userId = user.uid;
-    OneSignal.push(function() {
-    
-      OneSignal.isPushNotificationsEnabled(function(isEnabled) {
-    
-        if (isEnabled) {
-    
-          OneSignal.getUserId(function(userId) {
-            console.log("OneSignal User ID:", userId);
-    
-            if (window.userId && userId) {
-              db.collection("users").doc(window.userId).set({
-                oneSignalId: userId
-              }, { merge: true });
-            }
-    
-          });
-    
-        } else {
-          console.log("BELUM SUBSCRIBE");
-        }
-    
-      });
-    
-    });
+
     // sembunyikan overlay jika muncul
     hideAuthOverlay();
 
