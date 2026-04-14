@@ -53,7 +53,18 @@ firebase.auth().onAuthStateChanged(user => {
       displayName: user.displayName || "User"
     };
     window.userId = user.uid;
-
+    OneSignal.push(function() {
+      OneSignal.getUserId(function(userId) {
+        console.log("OneSignal User ID:", userId);
+    
+        // 🔥 simpan ke Firestore user kamu
+        if (window.userId && userId) {
+          db.collection("users").doc(window.userId).set({
+            oneSignalId: userId
+          }, { merge: true });
+        }
+      });
+    });
     // sembunyikan overlay jika muncul
     hideAuthOverlay();
 
@@ -65,7 +76,10 @@ firebase.auth().onAuthStateChanged(user => {
       authReadySent = true;
       window.dispatchEvent(new Event('app-ready'));
     }
-
+    // 🔥 INIT ORDER LISTENER GLOBAL (BIAR BADGE LANGSUNG HIDUP)
+    if (window.loadOrders) {
+      window.loadOrders();
+    }
   } else {
     window.currentUser = null;
     window.userId = null;
@@ -137,46 +151,50 @@ function initApp() {
 
   // ===== POPSTATE BACK BUTTON ===== //
   window.addEventListener("popstate", (e) => {
-  
-    const state = e.state;
-  
-    // 🔥 kalau tidak ada state → balik ke home
-    if(!state || !state.view){
-      const idx = navIndex("home");
-      if(idx !== null) setActive(idx, true);
-      return;
-    }
-  
-    const view = state.view;
-  
-    // 🔥 HANDLE KHUSUS CHAT ROOM
-    if(view === "chatRoom"){
-      window.roomId = state.roomId || null;
-    
-      showView("chatRoom");
-    
-      // IMPORTANT: re-init chat
-      setTimeout(()=>{
-        window.initChatRoomView?.(window.roomId);
-      }, 50);
-    
-      return;
-    }
-  
-    // 🔥 VIEW NORMAL (home, chatlist, aktivitas, dll)
-    window.roomId = null;
-  
-    const idx = navIndex(view);
-    if(idx !== null){
-      setActive(idx, true);
-    }else{
-      showView(view);
-    }
-  
+    // 🔥 PAKSA SEMUA BACK KE CUSTOM LOGIC
+    handleBackButton();
   });
   // state awal
-  history.pushState({app:true}, "", location.pathname);
+  history.replaceState({root:true}, "", location.pathname);
 }
+function handleBackButton() {
+  let currentView = document.querySelector(".view.active")?.id?.replace("view-", "") || "home";
+
+  // ===== PRIORITAS 1: POPUP =====
+  const openPopups = document.querySelectorAll(".popup-overlay.show, .popup.show");
+  if (openPopups.length > 0) {
+    openPopups.forEach(p => p.classList.remove("show"));
+    document.body.classList.remove("popup-open");
+    return;
+  }
+
+  // ===== RULE 1: CHAT ROOM → CHATLIST =====
+  if (currentView === "chatRoom") {
+    const idx = navIndex("chatlist");
+    if (idx !== null) setActive(idx);
+    return;
+  }
+
+  // ===== RULE 2: SELAIN HOME & CHATROOM → HOME =====
+  if (currentView !== "home") {
+    const idx = navIndex("home");
+    if (idx !== null) setActive(idx);
+    return;
+  }
+
+  // ===== RULE 3: HOME → EXIT =====
+  if (currentView === "home") {
+    const ok = confirm("Apakah Anda ingin keluar aplikasi?");
+    if (!ok) return;
+
+    window.close?.();
+    navigator.app?.exitApp?.();
+    return;
+  }
+}
+// Back button fisik Android (Cordova / WebView)
+document.addEventListener("backbutton", handleBackButton);
+
 function initGlobalScrollHeader(viewId){
   const view = document.getElementById(viewId);
   const scrollHeader = document.getElementById("scrollHeader");

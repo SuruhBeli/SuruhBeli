@@ -89,8 +89,11 @@ window.addEventListener("app-ready", async () => {
 
           const unsubscribeMsg = messagesRef.onSnapshot(msgSnap => {
             if (msgSnap.empty) return;
-            const msg = msgSnap.docs[0].data();
-            lastMessageIdMap[roomId] = msg.id;
+            const docMsg = msgSnap.docs[0];
+            const msg = docMsg.data();
+            
+            // 🔥 WAJIB pakai ini (ID asli Firestore)
+            lastMessageIdMap[roomId] = docMsg.id;
             const lastMsgText = msg.senderId === currentUser.uid ? `Anda: ${msg.text||"Pesan"}` : msg.text||"Pesan";
             const ts = msg.createdAt?.toDate()?.getTime() || Date.now();
 
@@ -103,7 +106,15 @@ window.addEventListener("app-ready", async () => {
 
             // Update unread
             if (!selectedChats.has(roomId)) {
-              unreadMap[roomId] = lastReadMap[roomId] === msg.id ? 0 : (unreadMap[roomId] || 1);
+              // pastikan ada
+              if (!lastReadMap[roomId]) {
+                lastReadMap[roomId] = "";
+                localStorage.setItem("lastReadMap", JSON.stringify(lastReadMap));
+              }
+              
+              const hasUnread = lastReadMap[roomId] !== lastMessageIdMap[roomId];
+              unreadMap[roomId] = hasUnread ? 1 : 0;
+              
               updateUnread(roomId);
             }
           });
@@ -143,14 +154,13 @@ async function loadCachedChats() {
       window.roomCache[chat.id] = true;
 
       // sinkronisasi unread
-      if (chat.lastMessage && chat.id) {
+      if (chat.id) {
         if (!lastReadMap[chat.id]) {
-          lastReadMap[chat.id] = chat.id;
+          lastReadMap[chat.id] = "";
           localStorage.setItem("lastReadMap", JSON.stringify(lastReadMap));
-          unreadMap[chat.id] = 0;
-        } else {
-          unreadMap[chat.id] = lastReadMap[chat.id] === chat.id ? 0 : (unreadMap[chat.id] || 1);
         }
+      
+        unreadMap[chat.id] = 0; // default aman
       }
 
       renderChat(chat);
@@ -228,15 +238,20 @@ function updateUnread(roomId){
   const badge = document.getElementById("unread_" + roomId);
   if(!badge) return;
 
-  if(lastReadMap[roomId] && lastMessageIdMap[roomId]){
-    badge.style.display = lastReadMap[roomId] === lastMessageIdMap[roomId] ? "none" : "flex";
-    badge.innerText = lastReadMap[roomId] === lastMessageIdMap[roomId] ? "0" : "1";
-    unreadMap[roomId] = lastReadMap[roomId] === lastMessageIdMap[roomId] ? 0 : 1;
-  } else {
-    const count = unreadMap[roomId] || 0;
-    badge.style.display = count > 0 ? "flex" : "none";
-    badge.innerText = count;
+  const lastRead = lastReadMap[roomId];
+  const lastMsg = lastMessageIdMap[roomId];
+  
+  if (!lastMsg) {
+    badge.style.display = "none";
+    return;
   }
+  
+  const hasUnread = lastRead !== lastMsg;
+  
+  badge.style.display = hasUnread ? "flex" : "none";
+  badge.innerText = hasUnread ? "1" : "0";
+  
+  unreadMap[roomId] = hasUnread ? 1 : 0;
 }
 
 function initUnreadBadge(chatId) {
@@ -294,8 +309,10 @@ function renderChat(chat) {
       }
 
       // simpan last read
-      lastReadMap[chat.id] = lastMessageIdMap[chat.id] || "";
-      localStorage.setItem("lastReadMap", JSON.stringify(lastReadMap));
+      if (lastMessageIdMap[chat.id]) {
+        lastReadMap[chat.id] = lastMessageIdMap[chat.id];
+        localStorage.setItem("lastReadMap", JSON.stringify(lastReadMap));
+      }
 
       // reset unread
       unreadMap[chat.id] = 0;
@@ -367,39 +384,65 @@ function updateSelectionUI(){
 cancelSelect?.addEventListener("click", exitSelectionMode);
 
 // ===== DELETE ===== //
-deleteBtn?.addEventListener("click", async ()=>{
-  if(selectedChats.size===0) return;
-  const confirmDelete = await showPopup(`Hapus pesan dari ${selectedChats.size} chat?`);
-  if(!confirmDelete) return;
-  const currentUser = window.currentUser;
-  if(!currentUser){ await showPopup("User tidak login",{confirm:false}); return; }
-  try{
-    const batch = db.batch();
-    for(const roomId of selectedChats){
-      const messagesRef = db.collection("chatRooms").doc(roomId).collection("messages");
-      const snapshot = await messagesRef.get();
-      snapshot.forEach(msgDoc=>{
-        const msgData = msgDoc.data();
-        const deletedFor = msgData.deletedFor||{};
-        deletedFor[currentUser.uid]=true;
-        batch.update(msgDoc.ref,{deletedFor});
-      });
-      batch.set(db.collection("chatRooms").doc(roomId), {deletedFor:{[currentUser.uid]:true}}, {merge:true});
-      if(window.dbIDB){ 
-        const tx=dbIDB.transaction("chats","readwrite"); 
-        tx.objectStore("chats").delete(roomId); 
+deleteBtn?.addEventListener("click", () => {
+  if(selectedChats.size === 0) return;
+
+  PopupManager.showConfirm(
+    `Hapus pesan dari ${selectedChats.size} chat?`,
+    async () => {
+
+      const currentUser = window.currentUser;
+      if(!currentUser){
+        PopupManager.showAlert("User tidak login");
+        return;
       }
+
+      try{
+        const batch = db.batch();
+
+        for(const roomId of selectedChats){
+          const messagesRef = db.collection("chatRooms")
+            .doc(roomId)
+            .collection("messages");
+
+          const snapshot = await messagesRef.get();
+
+          snapshot.forEach(msgDoc=>{
+            const msgData = msgDoc.data();
+            const deletedFor = msgData.deletedFor || {};
+            deletedFor[currentUser.uid] = true;
+
+            batch.update(msgDoc.ref, { deletedFor });
+          });
+
+          batch.set(
+            db.collection("chatRooms").doc(roomId),
+            { deletedFor: { [currentUser.uid]: true } },
+            { merge: true }
+          );
+
+          if(window.dbIDB){
+            const tx = dbIDB.transaction("chats","readwrite");
+            tx.objectStore("chats").delete(roomId);
+          }
+        }
+
+        await batch.commit();
+
+        selectedChats.forEach(roomId=>{
+          document.getElementById("chat_"+roomId)?.remove();
+          delete window.roomCache[roomId];
+        });
+
+        exitSelectionMode();
+
+      } catch(err){
+        console.error(err);
+        PopupManager.showAlert("Gagal menghapus pesan");
+      }
+
     }
-    await batch.commit();
-    selectedChats.forEach(roomId=>{ 
-      document.getElementById("chat_"+roomId)?.remove(); 
-      delete window.roomCache[roomId]; 
-    });
-    exitSelectionMode();
-  } catch(err){ 
-    console.error(err); 
-    await showPopup("Gagal menghapus pesan",{confirm:false}); 
-  }
+  );
 });
 
 // ===== PIN ===== //

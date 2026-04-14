@@ -3,15 +3,90 @@ let activeTab = "aktif";
 let unsubscribeOrders = null;
 let currentOrders = [];
 window.currentEditId = null;
+window.badgeSeen = JSON.parse(localStorage.getItem("badgeSeen")) || {
+  diproses: 0,
+  riwayat: 0
+};
+function saveBadgeSeen() {
+  localStorage.setItem("badgeSeen", JSON.stringify(window.badgeSeen));
+}
+window.loadOrders = loadOrders;
+window.lastOrderStatus = {};
 
 /* ====== INIT (Dipanggil dari index.js) ======= */
 function initAktivitas() {
   if (!window.userId || !window.db) return; // pastikan login & db ready
   setupTabs();
   loadOrders();
+  setTimeout(updateAktivitasBadge, 0);
 }
 window.initAktivitas = initAktivitas;
+// BADGE //
+function updateAktivitasBadge() {
+  let navItem = document.querySelector('.nav-item[data-view="aktivitas"]');
 
+  if (!navItem) {
+    setTimeout(updateAktivitasBadge, 100);
+    return;
+  }
+
+  let badge = navItem.querySelector(".nav-badge");
+
+  // 🔥 cari order terbaru per kategori
+  const latestDiproses = currentOrders
+    .filter(o => o.status === "Diproses")
+    .sort((a,b) => b.createdAt - a.createdAt)[0];
+
+  const latestRiwayat = currentOrders
+    .filter(o => o.status === "Selesai" || o.status === "Dibatalkan")
+    .sort((a,b) => b.createdAt - a.createdAt)[0];
+
+  // 🔥 bandingkan dengan waktu terakhir dilihat
+  const showDiproses = latestDiproses &&
+    latestDiproses.createdAt.getTime() > window.badgeSeen.diproses;
+
+  const showRiwayat = latestRiwayat &&
+    latestRiwayat.createdAt.getTime() > window.badgeSeen.riwayat;
+
+  if (showDiproses || showRiwayat) {
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "nav-badge";
+      navItem.appendChild(badge);
+    }
+  } else {
+    badge?.remove();
+  }
+}
+function triggerOrderNotification(order) {
+
+  if (!window.OneSignal) return;
+
+  let title = "Update Pesanan";
+  let message = "";
+
+  switch(order.status) {
+    case "Diproses":
+      message = `Pesanan kamu sedang diproses 🚀`;
+      break;
+    case "Selesai":
+      message = `Pesanan kamu sudah selesai ✅`;
+      break;
+    case "Dibatalkan":
+      message = `Pesanan dibatalkan ❌`;
+      break;
+    default:
+      return; // status lain diabaikan
+  }
+
+  window.OneSignal.push(function() {
+    window.OneSignal.showNotification({
+      title: title,
+      message: message
+    });
+  });
+
+}
 /* ====== TAB SETUP ====== */
 function setupTabs() {
   const tabs = document.querySelectorAll(".tab");
@@ -23,6 +98,21 @@ function setupTabs() {
       tab.classList.add("active");
 
       activeTab = tab.dataset.tab;
+
+      // 🔥 FIX SESUAI STRUKTUR STATUS
+      if (activeTab === "diproses") {
+        window.badgeSeen.diproses = Date.now();
+        saveBadgeSeen();
+      }
+      
+      if (activeTab === "riwayat") {
+        window.badgeSeen.riwayat = Date.now();
+        saveBadgeSeen();
+      }
+
+      // ❌ JANGAN ADA LOGIC DI "aktif"
+
+      updateAktivitasBadge();
       renderOrders();
     });
   });
@@ -43,26 +133,57 @@ function loadOrders() {
     unsubscribeOrders = null;
   }
 
-const pageSize = 50; // load max 50 orders pertama
-unsubscribeOrders = window.db.collection("orders")
-  .where("userId", "==", window.userId)
-  .orderBy("createdAt", "desc")
-  .limit(pageSize)
+  const pageSize = 50;
+
+  unsubscribeOrders = window.db.collection("orders")
+    .where("userId", "==", window.userId)
+    .orderBy("createdAt", "desc")
+    .limit(pageSize)
   .onSnapshot(snapshot => {
+    if (snapshot.metadata.hasPendingWrites) return;
     if (!snapshot.empty) {
-      currentOrders = snapshot.docs.map(doc => {
+  
+      // 🔥 mapping SEKALI saja
+      const newOrders = snapshot.docs.map(doc => {
         const data = doc.data();
-        return {
+      
+        const order = {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(0)
+          createdAt: data.createdAt?.toDate
+            ? data.createdAt.toDate()
+            : new Date(0)
         };
+      
+        // 🔥 CEK PERUBAHAN STATUS
+        const prevStatus = window.lastOrderStatus[order.id];
+        const currentStatus = order.status;
+      
+        if (prevStatus && prevStatus !== currentStatus) {
+          triggerOrderNotification(order);
+        }
+      
+        // simpan status terbaru
+        window.lastOrderStatus[order.id] = currentStatus;
+      
+        return order;
       });
-      requestAnimationFrame(renderOrders); // debounce render
+  
+      // 🔥 update state
+      currentOrders = newOrders;
+  
+      // ✅ URUTAN BENAR (WAJIB)
+      updateAktivitasBadge();
+      requestAnimationFrame(renderOrders);
+  
     } else {
+  
       currentOrders = [];
+  
+      updateAktivitasBadge();
       renderOrders();
     }
+  
   }, err => {
     console.error("Firestore listener error:", err);
     container.innerHTML = "Gagal memuat pesanan.";
@@ -154,22 +275,39 @@ function updateOrderCard(card, order) {
   actionsEl.innerHTML = `
     <div class="action-wrapper">
       <span class="action-label">Detail</span>
-      <button class="action-btn btn-detail" onclick="showDetail('${order.id}')">Detail</button>
+      <button class="action-btn btn-detail" onclick="showDetail('${order.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M11.986 3H12a2 2 0 0 1 2 2v6a2 2 0 0 1-1.5 1.937v-2.523a2.5 2.5 0 0 0-.732-1.768L8.354 5.232A2.5 2.5 0 0 0 6.586 4.5H4.063A2 2 0 0 1 6 3h.014A2.25 2.25 0 0 1 8.25 1h1.5a2.25 2.25 0 0 1 2.236 2ZM10.5 4v-.75a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75V4h3Z" clip-rule="evenodd" />
+          <path d="M3 6a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-3.586a1 1 0 0 0-.293-.707L7.293 6.293A1 1 0 0 0 6.586 6H3Z" />
+        </svg>
+      </button>
     </div>
     ${canEdit ? `
     <div class="action-wrapper">
       <span class="action-label">Edit</span>
-      <button class="action-btn btn-edit" onclick="openEditPopup('${order.id}')">Edit</button>
+      <button class="action-btn btn-edit" onclick="openEditPopup('${order.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M11.013 2.513a1.75 1.75 0 0 1 2.475 2.474L6.226 12.25a2.751 2.751 0 0 1-.892.596l-2.047.848a.75.75 0 0 1-.98-.98l.848-2.047a2.75 2.75 0 0 1 .596-.892l7.262-7.261Z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>` : ''}
     ${canCancel ? `
     <div class="action-wrapper">
       <span class="action-label">Batalkan</span>
-      <button class="action-btn btn-cancel" onclick="confirmCancel('${order.id}')">Batalkan</button>
+      <button class="action-btn btn-cancel" onclick="confirmCancel('${order.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm2.78-4.22a.75.75 0 0 1-1.06 0L8 9.06l-1.72 1.72a.75.75 0 1 1-1.06-1.06L6.94 8 5.22 6.28a.75.75 0 0 1 1.06-1.06L8 6.94l1.72-1.72a.75.75 0 1 1 1.06 1.06L9.06 8l1.72 1.72a.75.75 0 0 1 0 1.06Z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>` : ''}
     ${canChat ? `
     <div class="action-wrapper">
       <span class="action-label">Chat Driver</span>
-      <button class="action-btn btn-chat" onclick="chatDriver('${order.kurir}', '${order.id}')">Chat</button>
+      <button class="action-btn btn-chat" onclick="chatDriver('${order.kurir}', '${order.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M8 2C4.262 2 1 4.57 1 8c0 1.86.98 3.486 2.455 4.566a3.472 3.472 0 0 1-.469 1.26.75.75 0 0 0 .713 1.14 6.961 6.961 0 0 0 3.06-1.06c.403.062.818.094 1.241.094 3.738 0 7-2.57 7-6s-3.262-6-7-6ZM5 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-1a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM8 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>` : ''}
   `;
 }
@@ -197,7 +335,12 @@ function renderOrderCard(order) {
   const detailBtn = `
     <div class="action-wrapper">
       <span class="action-label">Detail</span>
-      <button class="action-btn btn-detail" onclick="showDetail('${order.id}')">Detail</button>
+      <button class="action-btn btn-detail" onclick="showDetail('${order.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M11.986 3H12a2 2 0 0 1 2 2v6a2 2 0 0 1-1.5 1.937v-2.523a2.5 2.5 0 0 0-.732-1.768L8.354 5.232A2.5 2.5 0 0 0 6.586 4.5H4.063A2 2 0 0 1 6 3h.014A2.25 2.25 0 0 1 8.25 1h1.5a2.25 2.25 0 0 1 2.236 2ZM10.5 4v-.75a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75V4h3Z" clip-rule="evenodd" />
+          <path d="M3 6a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-3.586a1 1 0 0 0-.293-.707L7.293 6.293A1 1 0 0 0 6.586 6H3Z" />
+        </svg>
+      </button>
     </div>
   `;
 
@@ -205,7 +348,11 @@ function renderOrderCard(order) {
   const editBtn = canEdit ? `
     <div class="action-wrapper">
       <span class="action-label">Edit</span>
-      <button class="action-btn btn-edit" onclick="openEditPopup('${order.id}')">Edit</button>
+      <button class="action-btn btn-edit" onclick="openEditPopup('${order.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M11.013 2.513a1.75 1.75 0 0 1 2.475 2.474L6.226 12.25a2.751 2.751 0 0 1-.892.596l-2.047.848a.75.75 0 0 1-.98-.98l.848-2.047a2.75 2.75 0 0 1 .596-.892l7.262-7.261Z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>
   ` : '';
 
@@ -213,7 +360,11 @@ function renderOrderCard(order) {
   const cancelBtn = canCancel ? `
     <div class="action-wrapper">
       <span class="action-label">Batalkan</span>
-      <button class="action-btn btn-cancel" onclick="confirmCancel('${order.id}')">Batalkan</button>
+      <button class="action-btn btn-cancel" onclick="confirmCancel('${order.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm2.78-4.22a.75.75 0 0 1-1.06 0L8 9.06l-1.72 1.72a.75.75 0 1 1-1.06-1.06L6.94 8 5.22 6.28a.75.75 0 0 1 1.06-1.06L8 6.94l1.72-1.72a.75.75 0 1 1 1.06 1.06L9.06 8l1.72 1.72a.75.75 0 0 1 0 1.06Z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>
   ` : '';
 
@@ -221,7 +372,11 @@ function renderOrderCard(order) {
   const chatBtn = (order.status === 'Diproses' && order.kurir) ? `
     <div class="action-wrapper">
       <span class="action-label">Chat Driver</span>
-      <button class="action-btn btn-chat" onclick="chatDriver('${order.kurir}', '${order.id}')">Chat</button>
+      <button class="action-btn btn-chat" onclick="chatDriver('${order.kurir}', '${order.id}')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
+          <path fill-rule="evenodd" d="M8 2C4.262 2 1 4.57 1 8c0 1.86.98 3.486 2.455 4.566a3.472 3.472 0 0 1-.469 1.26.75.75 0 0 0 .713 1.14 6.961 6.961 0 0 0 3.06-1.06c.403.062.818.094 1.241.094 3.738 0 7-2.57 7-6s-3.262-6-7-6ZM5 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7-1a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM8 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" />
+        </svg>
+      </button>
     </div>
   ` : '';
 

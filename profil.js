@@ -17,31 +17,6 @@ function safeOnClick(id, handler){
 let pendingSave = false;
 let pendingLogout = false;
 
-// ===== LOAD HEADER DARI FIRESTORE (Realtime) =====
-async function loadHeaderProfil() {
-  const heroImg = document.getElementById("heroImg");
-  if (!heroImg) return;
-
-  // helper default path
-  const defaultPath = "default.png";
-
-  try {
-    const docRef = window.db.collection("stockfoto").doc("foto");
-    docRef.onSnapshot(doc => {
-      if (!doc.exists) {
-        heroImg.src = defaultPath;
-        return;
-      }
-      const url = doc.data().headerprofil || defaultPath;
-      heroImg.src = url;
-      heroImg.onerror = () => { heroImg.src = defaultPath; };
-    });
-  } catch (e) {
-    console.log("Gagal load header profil:", e);
-    heroImg.src = defaultPath;
-  }
-}
-
 // ===== SET DATA DEFAULT =====
 function setDefaultProfile(){
   const nameEl = document.getElementById("profileName");
@@ -58,8 +33,6 @@ function setDefaultProfile(){
 // ===== LOAD DATA PROFIL USER (Realtime) =====
 window.initProfil = async function() {
   console.log("👤 Profil page init");
-  
-  await loadHeaderProfil();
 
   const userId = window.userId; // Auth ikut index.js
   const nameEl = document.getElementById("profileName");
@@ -276,7 +249,7 @@ safeOnClick("btnSaveProfile", async () => {
 
   } catch(err){
     console.error("Error update profil:", err);
-    PopupManager.showCustom("Gagal memperbarui profil");
+    PopupManager.showCustom("Ukuran foto terlalu besar😔");
   }
 });
 safeOnClick("btnTerms", () => { window.location.href = "ketentuan.html"; });

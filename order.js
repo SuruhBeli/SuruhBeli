@@ -82,40 +82,11 @@ window.addEventListener("app-ready", async () => {
     }
     await loadDesaDropdown();
     await loadSemuaDesa();
-    await loadHeroHeader();
     console.log("✅ Order page ready dengan user:", window.currentUser.uid);
   }catch(e){
     console.error("Gagal inisialisasi user/order page:", e);
   }
 });
-
-// ===== HERO HEADER LOAD ===== //
-let cacheHeroHeader = null;
-
-async function loadHeroHeader(){
-  const hero = document.getElementById("heroHeader");
-  const defaultImg = "default.png";
-  if(!hero) return;
-  try{
-    if(cacheHeroHeader){
-      setHeroImage(cacheHeroHeader);
-      return;
-    }
-    const doc = await db.collection("stockfoto").doc("foto").get();
-    const url = doc.exists ? doc.data().headerorder : "";
-    cacheHeroHeader = url || defaultImg;
-    setHeroImage(cacheHeroHeader);
-  }catch(e){
-    setHeroImage(defaultImg);
-  }
-
-  function setHeroImage(url){
-    const imgTest = new Image();
-    imgTest.src = url;
-    imgTest.onload = ()=>{ hero.style.backgroundImage=`url('${url}')`; hero.style.opacity="0"; setTimeout(()=>hero.style.opacity="1",50); };
-    imgTest.onerror = ()=>{ hero.style.backgroundImage=`url('${defaultImg}')`; };
-  }
-}
 
 // ===== LOAD DESA DROPDOWN ===== //
 let cacheDesaDropdown = null; // ⬅️ simpan cache
