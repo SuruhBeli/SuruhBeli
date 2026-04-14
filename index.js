@@ -54,16 +54,28 @@ firebase.auth().onAuthStateChanged(user => {
     };
     window.userId = user.uid;
     OneSignal.push(function() {
-      OneSignal.getUserId(function(userId) {
-        console.log("OneSignal User ID:", userId);
     
-        // 🔥 simpan ke Firestore user kamu
-        if (window.userId && userId) {
-          db.collection("users").doc(window.userId).set({
-            oneSignalId: userId
-          }, { merge: true });
+      OneSignal.isPushNotificationsEnabled(function(isEnabled) {
+    
+        if (isEnabled) {
+    
+          OneSignal.getUserId(function(userId) {
+            console.log("OneSignal User ID:", userId);
+    
+            if (window.userId && userId) {
+              db.collection("users").doc(window.userId).set({
+                oneSignalId: userId
+              }, { merge: true });
+            }
+    
+          });
+    
+        } else {
+          console.log("BELUM SUBSCRIBE");
         }
+    
       });
+    
     });
     // sembunyikan overlay jika muncul
     hideAuthOverlay();

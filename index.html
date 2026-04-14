@@ -28,14 +28,35 @@
 <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+
 <script>
   window.OneSignalDeferred = window.OneSignalDeferred || [];
+
   OneSignalDeferred.push(async function(OneSignal) {
+
     await OneSignal.init({
       appId: "1e6c06eb-4a59-4ae6-b23b-3b8a325a89ba",
     });
+
+    // 🔥 WAJIB: minta izin notif
+    await OneSignal.Notifications.requestPermission();
+
+    const isEnabled = await OneSignal.Notifications.permission;
+
+    console.log("Permission:", isEnabled);
+
+    // 🔥 ambil player ID
+    const userId = await OneSignal.User.PushSubscription.id;
+    console.log("OneSignal User ID:", userId);
+
+    // 🔥 simpan ke Firestore
+    if (window.userId && userId) {
+      db.collection("users").doc(window.userId).set({
+        oneSignalId: userId
+      }, { merge: true });
+    }
+
   });
-</script>
 </script>
 </head>
 <body>
