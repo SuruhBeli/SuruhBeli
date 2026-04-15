@@ -41,12 +41,14 @@ window.roomId = null;
 // ====== AUTH ======
 firebase.auth().onAuthStateChanged(user => {
 
-  // Pastikan app sudah init minimal sekali
+  // 🔥 Pastikan app init sekali
   if (!appStarted) {
     initApp();
   }
 
   if (user) {
+
+    // 🔥 SIMPAN DATA USER GLOBAL
     window.currentUser = {
       uid: user.uid,
       email: user.email,
@@ -55,46 +57,57 @@ firebase.auth().onAuthStateChanged(user => {
 
     window.userId = user.uid;
 
-    // 🔥 KIRIM UID KE ANDROID (UNTUK FCM TOKEN SAVE)
+    // 🔥 KIRIM UID KE ANDROID (UNTUK SIMPAN FCM TOKEN)
     try {
       if (window.Android && typeof window.Android.setUserId === "function") {
-        window.Android.setUserId(user.uid);
-        console.log("✅ UID dikirim ke Android:", user.uid);
+
+        // Delay dikit biar WebView siap
+        setTimeout(() => {
+          window.Android.setUserId(user.uid);
+          console.log("✅ UID berhasil dikirim ke Android:", user.uid);
+        }, 500);
+
       } else {
-        console.log("⚠️ Android bridge belum tersedia (akses dari browser biasa)");
+        console.log("⚠️ Android bridge tidak tersedia (buka di browser biasa)");
       }
     } catch (e) {
-      console.log("❌ Gagal kirim UID ke Android:", e);
+      console.log("❌ Error kirim UID ke Android:", e);
     }
 
-    // sembunyikan overlay jika muncul
-    hideAuthOverlay();
+    // 🔥 HIDE LOGIN OVERLAY
+    if (typeof hideAuthOverlay === "function") {
+      hideAuthOverlay();
+    }
 
-    // Kirim event ke modul lain supaya chat.js bisa load partner
+    // 🔥 EVENT USER READY (UNTUK MODULE LAIN)
     window.dispatchEvent(
-      new CustomEvent('user-ready', { 
-        detail: { currentUser: window.currentUser } 
+      new CustomEvent("user-ready", {
+        detail: { currentUser: window.currentUser }
       })
     );
 
-    // Hanya kirim app-ready sekali
+    // 🔥 APP READY (HANYA SEKALI)
     if (!authReadySent) {
       authReadySent = true;
-      window.dispatchEvent(new Event('app-ready'));
+      window.dispatchEvent(new Event("app-ready"));
     }
 
-    // 🔥 INIT ORDER LISTENER GLOBAL (BIAR BADGE LANGSUNG HIDUP)
-    if (window.loadOrders) {
+    // 🔥 LOAD ORDER (KALAU ADA)
+    if (typeof window.loadOrders === "function") {
       window.loadOrders();
     }
 
   } else {
+
     window.currentUser = null;
     window.userId = null;
 
-    // tampilkan overlay tanpa mengubah app yang sudah jalan
-    showAuthOverlay();
+    // 🔥 SHOW LOGIN OVERLAY
+    if (typeof showAuthOverlay === "function") {
+      showAuthOverlay();
+    }
   }
+
 });
 function showAuthOverlay() {
   if (document.getElementById("authOverlay")) return;
