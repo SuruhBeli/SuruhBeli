@@ -39,6 +39,23 @@ window.APP_CACHE = {
 window.roomId = null;
 
 // ====== AUTH ======
+function sendUidToAndroid(uid) {
+  let retry = 0;
+
+  const interval = setInterval(() => {
+    if (window.Android && typeof window.Android.setUserId === "function") {
+      window.Android.setUserId(uid);
+      console.log("✅ UID terkirim ke Android:", uid);
+      clearInterval(interval);
+    }
+
+    retry++;
+    if (retry > 20) {
+      console.log("❌ Gagal kirim UID ke Android");
+      clearInterval(interval);
+    }
+  }, 500);
+}
 firebase.auth().onAuthStateChanged(user => {
 
   // 🔥 Pastikan app init sekali
@@ -59,17 +76,7 @@ firebase.auth().onAuthStateChanged(user => {
 
     // 🔥 KIRIM UID KE ANDROID (UNTUK SIMPAN FCM TOKEN)
     try {
-      if (window.Android && typeof window.Android.setUserId === "function") {
-
-        // Delay dikit biar WebView siap
-        setTimeout(() => {
-          window.Android.setUserId(user.uid);
-          console.log("✅ UID berhasil dikirim ke Android:", user.uid);
-        }, 500);
-
-      } else {
-        console.log("⚠️ Android bridge tidak tersedia (buka di browser biasa)");
-      }
+      sendUidToAndroid(user.uid);
     } catch (e) {
       console.log("❌ Error kirim UID ke Android:", e);
     }
