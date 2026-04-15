@@ -38,7 +38,7 @@ window.APP_CACHE = {
 };
 window.roomId = null;
 
-// 🔥 FUNCTION KIRIM UID KE ANDROID (RETRY SYSTEM)
+// 🔥 FUNCTION KIRIM UID KE ANDROID (ANTI GAGAL + RETRY)
 function sendUidToAndroid(uid) {
   let retry = 0;
 
@@ -60,18 +60,15 @@ function sendUidToAndroid(uid) {
 
   }, 500);
 }
-
 // ====== AUTH ======
 firebase.auth().onAuthStateChanged(user => {
 
-  // 🔥 Pastikan app init sekali
   if (!appStarted) {
     initApp();
   }
 
   if (user) {
 
-    // 🔥 SIMPAN DATA USER GLOBAL
     window.currentUser = {
       uid: user.uid,
       email: user.email,
@@ -82,32 +79,26 @@ firebase.auth().onAuthStateChanged(user => {
 
     console.log("🔥 User login:", user.uid);
 
-    // 🔥 KIRIM UID (TRIGGER 1)
-    try {
+    // 🔥 DELAY BIAR WEBVIEW SIAP
+    setTimeout(() => {
       sendUidToAndroid(user.uid);
-    } catch (e) {
-      console.log("❌ Error kirim UID ke Android:", e);
-    }
+    }, 1000);
 
-    // 🔥 HIDE LOGIN OVERLAY
     if (typeof hideAuthOverlay === "function") {
       hideAuthOverlay();
     }
 
-    // 🔥 EVENT USER READY
     window.dispatchEvent(
       new CustomEvent("user-ready", {
         detail: { currentUser: window.currentUser }
       })
     );
 
-    // 🔥 APP READY (HANYA SEKALI)
     if (!authReadySent) {
       authReadySent = true;
       window.dispatchEvent(new Event("app-ready"));
     }
 
-    // 🔥 LOAD ORDER
     if (typeof window.loadOrders === "function") {
       window.loadOrders();
     }
@@ -123,9 +114,7 @@ firebase.auth().onAuthStateChanged(user => {
   }
 
 });
-
-
-// 🔥 TRIGGER 2 (PALING PENTING - FIX WEBVIEW DELAY)
+// 🔥 BACKUP TRIGGER (ANTI GAGAL TOTAL)
 window.addEventListener("app-ready", () => {
   setTimeout(() => {
     if (window.currentUser?.uid) {
