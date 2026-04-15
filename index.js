@@ -52,23 +52,42 @@ firebase.auth().onAuthStateChanged(user => {
       email: user.email,
       displayName: user.displayName || "User"
     };
+
     window.userId = user.uid;
+
+    // 🔥 KIRIM UID KE ANDROID (UNTUK FCM TOKEN SAVE)
+    try {
+      if (window.Android && typeof window.Android.setUserId === "function") {
+        window.Android.setUserId(user.uid);
+        console.log("✅ UID dikirim ke Android:", user.uid);
+      } else {
+        console.log("⚠️ Android bridge belum tersedia (akses dari browser biasa)");
+      }
+    } catch (e) {
+      console.log("❌ Gagal kirim UID ke Android:", e);
+    }
 
     // sembunyikan overlay jika muncul
     hideAuthOverlay();
 
     // Kirim event ke modul lain supaya chat.js bisa load partner
-    window.dispatchEvent(new CustomEvent('user-ready', { detail: { currentUser: window.currentUser } }));
+    window.dispatchEvent(
+      new CustomEvent('user-ready', { 
+        detail: { currentUser: window.currentUser } 
+      })
+    );
 
     // Hanya kirim app-ready sekali
     if (!authReadySent) {
       authReadySent = true;
       window.dispatchEvent(new Event('app-ready'));
     }
+
     // 🔥 INIT ORDER LISTENER GLOBAL (BIAR BADGE LANGSUNG HIDUP)
     if (window.loadOrders) {
       window.loadOrders();
     }
+
   } else {
     window.currentUser = null;
     window.userId = null;
