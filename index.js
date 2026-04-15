@@ -38,11 +38,14 @@ window.APP_CACHE = {
 };
 window.roomId = null;
 
-// ====== AUTH ======
+// 🔥 FUNCTION KIRIM UID KE ANDROID (RETRY SYSTEM)
 function sendUidToAndroid(uid) {
   let retry = 0;
 
   const interval = setInterval(() => {
+
+    console.log("⏳ Coba kirim UID ke Android...", retry);
+
     if (window.Android && typeof window.Android.setUserId === "function") {
       window.Android.setUserId(uid);
       console.log("✅ UID terkirim ke Android:", uid);
@@ -54,8 +57,11 @@ function sendUidToAndroid(uid) {
       console.log("❌ Gagal kirim UID ke Android");
       clearInterval(interval);
     }
+
   }, 500);
 }
+
+// ====== AUTH ======
 firebase.auth().onAuthStateChanged(user => {
 
   // 🔥 Pastikan app init sekali
@@ -74,7 +80,9 @@ firebase.auth().onAuthStateChanged(user => {
 
     window.userId = user.uid;
 
-    // 🔥 KIRIM UID KE ANDROID (UNTUK SIMPAN FCM TOKEN)
+    console.log("🔥 User login:", user.uid);
+
+    // 🔥 KIRIM UID (TRIGGER 1)
     try {
       sendUidToAndroid(user.uid);
     } catch (e) {
@@ -86,7 +94,7 @@ firebase.auth().onAuthStateChanged(user => {
       hideAuthOverlay();
     }
 
-    // 🔥 EVENT USER READY (UNTUK MODULE LAIN)
+    // 🔥 EVENT USER READY
     window.dispatchEvent(
       new CustomEvent("user-ready", {
         detail: { currentUser: window.currentUser }
@@ -99,7 +107,7 @@ firebase.auth().onAuthStateChanged(user => {
       window.dispatchEvent(new Event("app-ready"));
     }
 
-    // 🔥 LOAD ORDER (KALAU ADA)
+    // 🔥 LOAD ORDER
     if (typeof window.loadOrders === "function") {
       window.loadOrders();
     }
@@ -109,12 +117,22 @@ firebase.auth().onAuthStateChanged(user => {
     window.currentUser = null;
     window.userId = null;
 
-    // 🔥 SHOW LOGIN OVERLAY
     if (typeof showAuthOverlay === "function") {
       showAuthOverlay();
     }
   }
 
+});
+
+
+// 🔥 TRIGGER 2 (PALING PENTING - FIX WEBVIEW DELAY)
+window.addEventListener("app-ready", () => {
+  setTimeout(() => {
+    if (window.currentUser?.uid) {
+      console.log("🔥 FORCE SEND UID (app-ready)");
+      sendUidToAndroid(window.currentUser.uid);
+    }
+  }, 1500);
 });
 function showAuthOverlay() {
   if (document.getElementById("authOverlay")) return;
