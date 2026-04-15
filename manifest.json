@@ -3,7 +3,7 @@
   "short_name": "SuruhBeli",
   "start_url": "./index.html",
   "scope": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#FB923C",
   "theme_color": "#FB923C",
   "orientation": "portrait",
