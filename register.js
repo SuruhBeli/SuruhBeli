@@ -183,21 +183,15 @@ window.onNativeLogin = async function(uid, email){
   try{
     showLoading();
 
-    // 🔥 LOGIN KE FIREBASE SECARA ANONYMOUS
-    const userCred = await auth.signInAnonymously();
-
-    const realUid = userCred.user.uid;
-
     await getLokasiPromise();
 
-    const userRef = db.collection("users").doc(realUid);
+    const userRef = db.collection("users").doc(uid);
     const doc = await userRef.get();
 
     if(!doc.exists){
       await userRef.set({
         nama: email || "User",
         email: email || "",
-        googleId: uid, // 🔥 simpan google id kalau mau
         lat: latUser,
         lng: lngUser,
         role: "user",
