@@ -226,32 +226,31 @@ function handleBackButton() {
   if (openPopups.length > 0) {
     openPopups.forEach(p => p.classList.remove("show"));
     document.body.classList.remove("popup-open");
-    return;
+    return true;
   }
 
-  // ===== RULE 1: CHAT ROOM → CHATLIST =====
   if (currentView === "chatRoom") {
     const idx = navIndex("chatlist");
     if (idx !== null) setActive(idx);
-    return;
+    return true;
   }
 
-  // ===== RULE 2: SELAIN HOME & CHATROOM → HOME =====
   if (currentView !== "home") {
     const idx = navIndex("home");
     if (idx !== null) setActive(idx);
-    return;
+    return true;
   }
 
-  // ===== RULE 3: HOME → EXIT =====
   if (currentView === "home") {
     const ok = confirm("Apakah Anda ingin keluar aplikasi?");
-    if (!ok) return;
+    if (!ok) return true;
 
     window.close?.();
     navigator.app?.exitApp?.();
-    return;
+    return false;
   }
+
+  return false;
 }
 // Back button fisik Android (Cordova / WebView)
 document.addEventListener("backbutton", handleBackButton);
