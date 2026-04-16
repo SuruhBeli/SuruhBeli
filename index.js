@@ -68,7 +68,7 @@ firebase.auth().onAuthStateChanged(user => {
     initApp();
   }
 
-  if (user) {
+  if (user || localStorage.getItem("realUid")) {
 
     // 🔥 AMBIL UID ASLI DARI ANDROID (PRIORITAS)
     const realUid = localStorage.getItem("realUid");

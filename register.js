@@ -156,7 +156,6 @@ window.onNativeLogin = async function(uid, email){
   console.log("🔥 LOGIN ANDROID:", uid, email);
 
   try{
-    showLoading();
 
     // Simpan data login ke localStorage
     localStorage.setItem("realUid", uid);
@@ -198,6 +197,7 @@ window.onNativeLogin = async function(uid, email){
 // Dipanggil saat Android gagal login (account null, idToken null, dll)
 window.onNativeLoginError = function(reason){
   console.error("❌ NATIVE LOGIN ERROR:", reason);
+  alert("LOGIN ERROR: " + reason);
   showError();
   hidePopup(1500);
 };
