@@ -37,18 +37,31 @@ function showLoading(){
   popup.style.display = "flex";
   popupText.innerText = "Tunggu sebentar";
   lottieAnim.goToAndPlay(0, true);
+  setTimeout(()=>{
+      if(popup.style.display === "flex"){
+        console.log("🔥 FORCE STOP LOADING");
+        showError();
+        hidePopup(1500);
+      }
+    }, 8000);
 }
 
-function showSuccess(){
+function showSuccess(message = "Berhasil"){
   popup.style.display = "flex";
-  popupText.innerText = "Berhasil";
+  popupText.innerText = message;
   lottieAnim.stop();
+
+  console.log("✅ SUCCESS:", message);
+  alert("✅ SUCCESS:\n" + message);
 }
 
-function showError(){
+function showError(message = "Terjadi kesalahan"){
   popup.style.display = "flex";
-  popupText.innerText = "Gagal";
+  popupText.innerText = message;
   lottieAnim.stop();
+
+  console.error("❌ ERROR:", message);
+  alert("❌ ERROR:\n" + message);
 }
 
 function hidePopup(delay = 1000){
@@ -102,13 +115,13 @@ async function confirmEmailAuth(){
   const confirmPass = document.getElementById("confirmPassword").value.trim();
 
   if(!email || !password){
-    showError();
+    showError("Email / password kosong");
     hidePopup(1500);
     return;
   }
 
   if(password !== confirmPass){
-    showError();
+    showError("Email / password kosong");
     hidePopup(1500);
     return;
   }
@@ -131,7 +144,7 @@ async function confirmEmailAuth(){
 
   }catch(error){
     console.error(error);
-    showError();
+    showError(error.message);
     hidePopup(1500);
   }
 }
@@ -140,34 +153,50 @@ async function confirmEmailAuth(){
 // GOOGLE LOGIN (ANDROID NATIVE)
 // ======================
 function loginGoogle(){
+  alert("CLICK GOOGLE LOGIN");
+
   if (window.Android && Android.loginWithGoogle) {
     showLoading();
-    Android.loginWithGoogle();
+
+    try {
+      Android.loginWithGoogle();
+      alert("INTENT GOOGLE DIKIRIM");
+    } catch(e) {
+      alert("ERROR CALL ANDROID:\n" + e.message);
+      showError();
+      hidePopup(1500);
+    }
+
   } else {
-    alert("Harap gunakan aplikasi untuk login Google");
+    alert("ANDROID OBJECT TIDAK ADA");
   }
 }
 
 // ======================
-// TERIMA LOGIN SUKSES DARI ANDROID
+// LOGIN SUCCESS FROM ANDROID
 // ======================
 window.onNativeLogin = async function(uid, email){
 
-  console.log("🔥 LOGIN ANDROID:", uid, email);
+  alert("STEP 1: onNativeLogin dipanggil\nUID: " + uid);
 
   try{
+    alert("STEP 2: simpan ke localStorage");
 
-    // Simpan data login ke localStorage
     localStorage.setItem("realUid", uid);
     localStorage.setItem("realEmail", email);
 
-    // ✅ Lokasi dan Firestore dijalankan paralel agar lebih cepat
-    const [, doc] = await Promise.all([
+    alert("STEP 3: ambil lokasi & firestore");
+
+    const [_, doc] = await Promise.all([
       getLokasiPromise(),
       db.collection("users").doc(uid).get()
     ]);
 
+    alert("STEP 4: cek user exist = " + doc.exists);
+
     if(!doc.exists){
+      alert("STEP 5: buat user baru di firestore");
+
       await db.collection("users").doc(uid).set({
         nama: email || "User",
         email: email || "",
@@ -178,6 +207,8 @@ window.onNativeLogin = async function(uid, email){
       });
     }
 
+    alert("STEP 6: sukses → redirect");
+
     showSuccess();
 
     setTimeout(()=>{
@@ -187,21 +218,23 @@ window.onNativeLogin = async function(uid, email){
   }catch(err){
     console.error("LOGIN ERROR:", err);
 
-    // Fallback: tetap redirect meski Firestore gagal
-    console.log("🔥 FORCE REDIRECT (ERROR)");
+    alert("ERROR JS:\n" + err.message);
+
+    // 🔥 tetap masuk biar ga stuck
     window.location.href = "index.html";
   }
 };
 
-// ✅ FIX: Tambah handler error dari MainActivity
-// Dipanggil saat Android gagal login (account null, idToken null, dll)
+// ======================
+// ERROR FROM ANDROID
+// ======================
 window.onNativeLoginError = function(reason){
-  console.error("❌ NATIVE LOGIN ERROR:", reason);
-  alert("LOGIN ERROR: " + reason);
-  showError();
-  hidePopup(1500);
-};
+  console.error("❌ LOGIN ERROR:", reason);
 
+  showError("Google Login Gagal:\n" + reason);
+
+  hidePopup(2000);
+};
 // ======================
 // SIMPAN USER (EMAIL)
 // ======================
