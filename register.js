@@ -155,6 +155,9 @@ window.onNativeLogin = async function(uid, email){
   try{
     showLoading();
 
+    // 🔥 FIX: LOGIN KE FIREBASE WEB (PAKAI CUSTOM TOKEN ATAU ANONYMOUS)
+    await firebase.auth().signInAnonymously();
+
     await getLokasiPromise();
 
     const userRef = db.collection("users").doc(uid);
