@@ -155,12 +155,10 @@ window.onNativeLogin = async function(uid, email){
   try{
     showLoading();
 
-    // 🔥 WAJIB: LOGIN FIREBASE WEB
-    const result = await firebase.auth().signInAnonymously();
+    // ❌ HAPUS INI (BIKIN STUCK)
+    // await firebase.auth().signInAnonymously();
 
-    console.log("🔥 Firebase Web UID:", result.user.uid);
-
-    // 🔥 SIMPAN UID ASLI ANDROID
+    // 🔥 SIMPAN DATA LOGIN
     localStorage.setItem("realUid", uid);
     localStorage.setItem("realEmail", email);
 
@@ -182,14 +180,18 @@ window.onNativeLogin = async function(uid, email){
 
     showSuccess();
 
-    setTimeout(()=>{
-      window.location.href = "index.html";
-    }, 800);
+    console.log("🔥 REDIRECT SEKARANG");
+
+    // 🔥 LANGSUNG REDIRECT (TANPA DELAY)
+    window.location.href = "index.html";
 
   }catch(err){
     console.error("LOGIN ERROR:", err);
-    showError();
-    hidePopup(1500);
+
+    // 🔥 FALLBACK (BIAR GA STUCK)
+    console.log("🔥 FORCE REDIRECT (ERROR)");
+
+    window.location.href = "index.html";
   }
 };
 
