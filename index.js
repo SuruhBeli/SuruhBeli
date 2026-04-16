@@ -491,16 +491,6 @@ document.addEventListener("keydown", function(e){
     document.body.classList.remove("popup-open");
   }
 });
-// ====== SPA CUSTOM EVENTS ===== //
-window.addEventListener('goto-aktivitas', () => {
-  const idx = navIndex('aktivitas');
-  if (idx !== null) setActive(idx);
-});
-window.addEventListener('goto-chatlist', () => {
-  const idx = navIndex('chatlist');
-  if (idx !== null) setActive(idx);
-});
-
 // ====== GLOBAL POPUP MANAGER ====== //
 window.PopupManager = (function(){
   // DOM references

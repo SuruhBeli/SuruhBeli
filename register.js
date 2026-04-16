@@ -60,6 +60,8 @@ function hidePopup(delay = 1000){
 
 // ======================
 // LOKASI
+// ✅ FIX: Timeout diperkecil dari 10000 → 5000ms
+//         Supaya tidak terasa stuck terlalu lama
 // ======================
 function getLokasiPromise(){
   return new Promise((resolve)=>{
@@ -77,14 +79,15 @@ function getLokasiPromise(){
         resolve();
       },
       ()=>{
+        // Gagal/ditolak → tetap lanjut dengan koordinat 0
         latUser = 0;
         lngUser = 0;
         resolve();
       },
       {
-        enableHighAccuracy:true,
-        timeout:10000,
-        maximumAge:0
+        enableHighAccuracy: true,
+        timeout: 5000,      // ✅ FIX: dari 10000 → 5000
+        maximumAge: 60000   // ✅ FIX: pakai cache lokasi max 1 menit biar lebih cepat
       }
     );
   });
@@ -134,7 +137,7 @@ async function confirmEmailAuth(){
 }
 
 // ======================
-// 🔥 GOOGLE LOGIN (ANDROID NATIVE)
+// GOOGLE LOGIN (ANDROID NATIVE)
 // ======================
 function loginGoogle(){
   if (window.Android && Android.loginWithGoogle) {
@@ -146,7 +149,7 @@ function loginGoogle(){
 }
 
 // ======================
-// 🔥 TERIMA LOGIN DARI ANDROID
+// TERIMA LOGIN SUKSES DARI ANDROID
 // ======================
 window.onNativeLogin = async function(uid, email){
 
@@ -155,20 +158,18 @@ window.onNativeLogin = async function(uid, email){
   try{
     showLoading();
 
-    // ❌ HAPUS INI (BIKIN STUCK)
-    // await firebase.auth().signInAnonymously();
-
-    // 🔥 SIMPAN DATA LOGIN
+    // Simpan data login ke localStorage
     localStorage.setItem("realUid", uid);
     localStorage.setItem("realEmail", email);
 
-    await getLokasiPromise();
-
-    const userRef = db.collection("users").doc(uid);
-    const doc = await userRef.get();
+    // ✅ Lokasi dan Firestore dijalankan paralel agar lebih cepat
+    const [, doc] = await Promise.all([
+      getLokasiPromise(),
+      db.collection("users").doc(uid).get()
+    ]);
 
     if(!doc.exists){
-      await userRef.set({
+      await db.collection("users").doc(uid).set({
         nama: email || "User",
         email: email || "",
         lat: latUser,
@@ -180,19 +181,25 @@ window.onNativeLogin = async function(uid, email){
 
     showSuccess();
 
-    console.log("🔥 REDIRECT SEKARANG");
-
-    // 🔥 LANGSUNG REDIRECT (TANPA DELAY)
-    window.location.href = "index.html";
+    setTimeout(()=>{
+      window.location.href = "index.html";
+    }, 800);
 
   }catch(err){
     console.error("LOGIN ERROR:", err);
 
-    // 🔥 FALLBACK (BIAR GA STUCK)
+    // Fallback: tetap redirect meski Firestore gagal
     console.log("🔥 FORCE REDIRECT (ERROR)");
-
     window.location.href = "index.html";
   }
+};
+
+// ✅ FIX: Tambah handler error dari MainActivity
+// Dipanggil saat Android gagal login (account null, idToken null, dll)
+window.onNativeLoginError = function(reason){
+  console.error("❌ NATIVE LOGIN ERROR:", reason);
+  showError();
+  hidePopup(1500);
 };
 
 // ======================
