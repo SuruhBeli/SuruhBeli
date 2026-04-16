@@ -20,27 +20,44 @@ const popup = document.getElementById("popup");
 const popupText = document.getElementById("popupText");
 
 // ======================
+// LOTTIE (WAJIB ADA)
+// ======================
+let lottieAnim = lottie.loadAnimation({
+  container: document.getElementById('lottieLoader'),
+  renderer: 'svg',
+  loop: true,
+  autoplay: false,
+  path: 'loading.json' // pastikan file ini ADA
+});
+// ======================
 // POPUP DEBUG VERSION
 // ======================
 function showLoading(msg = "Tunggu sebentar"){
   popup.style.display = "flex";
   popupText.innerText = msg;
+
+  lottieAnim.goToAndPlay(0, true); // 🔥 START ANIMASI
 }
 
 function showSuccess(msg = "Berhasil"){
   popup.style.display = "flex";
   popupText.innerText = msg;
+
+  lottieAnim.stop(); // optional: bisa diganti anim success
 }
 
 function showError(msg = "Gagal"){
   popup.style.display = "flex";
   popupText.innerText = msg;
-  alert("❌ ERROR: " + msg); // 🔥 DEBUG ALERT
+
+  lottieAnim.stop();
+  alert("❌ ERROR: " + msg);
 }
 
 function hidePopup(delay = 1000){
   setTimeout(()=>{
     popup.style.display = "none";
+    lottieAnim.stop(); // 🔥 STOP BIAR RESET
   }, delay);
 }
 
