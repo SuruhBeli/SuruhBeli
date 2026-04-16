@@ -147,17 +147,22 @@ async function confirmEmailAuth(){
 // GOOGLE LOGIN (ANDROID NATIVE)
 // ======================
 function loginGoogle(){
+  alert("CLICK GOOGLE LOGIN");
+
   if (window.Android && Android.loginWithGoogle) {
     showLoading();
+
     try {
       Android.loginWithGoogle();
+      alert("INTENT GOOGLE DIKIRIM");
     } catch(e) {
-      console.error(e);
+      alert("ERROR CALL ANDROID:\n" + e.message);
       showError();
       hidePopup(1500);
     }
+
   } else {
-    alert("Harap gunakan aplikasi");
+    alert("ANDROID OBJECT TIDAK ADA");
   }
 }
 
@@ -166,18 +171,26 @@ function loginGoogle(){
 // ======================
 window.onNativeLogin = async function(uid, email){
 
-  console.log("🔥 LOGIN ANDROID:", uid, email);
+  alert("STEP 1: onNativeLogin dipanggil\nUID: " + uid);
 
   try{
+    alert("STEP 2: simpan ke localStorage");
+
     localStorage.setItem("realUid", uid);
     localStorage.setItem("realEmail", email);
 
-    const [, doc] = await Promise.all([
+    alert("STEP 3: ambil lokasi & firestore");
+
+    const [_, doc] = await Promise.all([
       getLokasiPromise(),
       db.collection("users").doc(uid).get()
     ]);
 
+    alert("STEP 4: cek user exist = " + doc.exists);
+
     if(!doc.exists){
+      alert("STEP 5: buat user baru di firestore");
+
       await db.collection("users").doc(uid).set({
         nama: email || "User",
         email: email || "",
@@ -188,6 +201,8 @@ window.onNativeLogin = async function(uid, email){
       });
     }
 
+    alert("STEP 6: sukses → redirect");
+
     showSuccess();
 
     setTimeout(()=>{
@@ -197,7 +212,9 @@ window.onNativeLogin = async function(uid, email){
   }catch(err){
     console.error("LOGIN ERROR:", err);
 
-    // 🔥 FORCE MASUK WALAU ERROR
+    alert("ERROR JS:\n" + err.message);
+
+    // 🔥 tetap masuk biar ga stuck
     window.location.href = "index.html";
   }
 };
@@ -207,11 +224,12 @@ window.onNativeLogin = async function(uid, email){
 // ======================
 window.onNativeLoginError = function(reason){
   console.error("❌ LOGIN ERROR:", reason);
-  alert(reason);
+
+  alert("❌ ERROR DARI ANDROID:\n" + reason);
+
   showError();
   hidePopup(1500);
 };
-
 // ======================
 // SIMPAN USER (EMAIL)
 // ======================
