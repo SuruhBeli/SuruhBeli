@@ -20,7 +20,7 @@ const popup = document.getElementById("popup");
 const popupText = document.getElementById("popupText");
 
 // ======================
-// LOTTIE LOADER
+// LOTTIE
 // ======================
 let lottieAnim = lottie.loadAnimation({
   container: document.getElementById('lottieLoader'),
@@ -59,27 +59,7 @@ function hidePopup(delay = 1000){
 }
 
 // ======================
-// KONFIRMASI PASSWORD
-// ======================
-function openConfirmPopup(){
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
-
-  if(!email || !password){
-    showError();
-    hidePopup(1500);
-    return;
-  }
-
-  document.getElementById("confirmPopup").style.display = "flex";
-}
-
-function closeConfirmPopup(){
-  document.getElementById("confirmPopup").style.display = "none";
-}
-
-// ======================
-// AMBIL LOKASI
+// LOKASI
 // ======================
 function getLokasiPromise(){
   return new Promise((resolve)=>{
@@ -100,11 +80,6 @@ function getLokasiPromise(){
         latUser = 0;
         lngUser = 0;
         resolve();
-      },
-      {
-        enableHighAccuracy:true,
-        timeout:10000,
-        maximumAge:0
       }
     );
   });
@@ -116,21 +91,12 @@ function getLokasiPromise(){
 async function confirmEmailAuth(){
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
-  const confirmPass = document.getElementById("confirmPassword").value.trim();
 
   if(!email || !password){
     showError();
     hidePopup(1500);
     return;
   }
-
-  if(password !== confirmPass){
-    showError();
-    hidePopup(1500);
-    return;
-  }
-
-  closeConfirmPopup();
 
   try{
     showLoading();
@@ -140,15 +106,7 @@ async function confirmEmailAuth(){
     try{
       userCredential = await auth.signInWithEmailAndPassword(email, password);
     }catch(error){
-
-      if(
-        error.code === "auth/user-not-found" ||
-        error.code === "auth/invalid-credential"
-      ){
-        userCredential = await auth.createUserWithEmailAndPassword(email, password);
-      }else{
-        throw error;
-      }
+      userCredential = await auth.createUserWithEmailAndPassword(email, password);
     }
 
     await getLokasiPromise();
@@ -162,36 +120,36 @@ async function confirmEmailAuth(){
 }
 
 // ======================
-// 🔥 GOOGLE LOGIN (ANDROID)
+// 🔥 GOOGLE LOGIN (FIX)
 // ======================
 function loginGoogle(){
-  if (window.Android && Android.loginWithGoogle) {
-    showLoading();
-    Android.loginWithGoogle();
-  } else {
-    alert("Login Google hanya tersedia di aplikasi");
-  }
+  showLoading();
+
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+
+  auth.signInWithRedirect(provider);
 }
 
 // ======================
-// 🔥 TERIMA LOGIN DARI ANDROID
+// 🔥 HANDLE REDIRECT (WAJIB)
 // ======================
-window.onNativeLogin = async function(uid, email){
+auth.getRedirectResult().then(async (result)=>{
+  if(result.user){
 
-  console.log("🔥 LOGIN ANDROID:", uid, email);
+    console.log("LOGIN GOOGLE:", result.user);
 
-  try{
     showLoading();
 
     await getLokasiPromise();
 
-    const userRef = db.collection("users").doc(uid);
+    const userRef = db.collection("users").doc(result.user.uid);
     const doc = await userRef.get();
 
     if(!doc.exists){
       await userRef.set({
-        nama: email || "User",
-        email: email || "",
+        nama: result.user.displayName || result.user.email || "User",
+        email: result.user.email || "",
         lat: latUser,
         lng: lngUser,
         role: "user",
@@ -204,13 +162,12 @@ window.onNativeLogin = async function(uid, email){
     setTimeout(()=>{
       window.location.href = "index.html";
     }, 900);
-
-  }catch(err){
-    console.error("LOGIN ERROR:", err);
-    showError();
-    hidePopup(1500);
   }
-};
+}).catch((error)=>{
+  console.error("GOOGLE ERROR:", error);
+  showError();
+  hidePopup(1500);
+});
 
 // ======================
 // SIMPAN USER
@@ -238,22 +195,8 @@ async function simpanUserJikaBaru(user){
     }, 900);
 
   }catch(err){
-    console.error("Firestore Error:", err);
+    console.error(err);
     showError();
     hidePopup(1500);
   }
 }
-
-// ======================
-// TEMA
-// ======================
-function loadTheme(){
-  const savedTheme = localStorage.getItem("themeMode");
-  if(savedTheme === "dark"){
-    document.body.classList.add("dark-mode");
-  }else{
-    document.body.classList.remove("dark-mode");
-  }
-}
-
-window.addEventListener("load", loadTheme);
