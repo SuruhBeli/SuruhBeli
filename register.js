@@ -31,7 +31,7 @@ let lottieAnim = lottie.loadAnimation({
 });
 
 // ======================
-// POPUP SIMPLE MODE
+// POPUP
 // ======================
 function showLoading(){
   popup.style.display = "flex";
@@ -59,7 +59,7 @@ function hidePopup(delay = 1000){
 }
 
 // ======================
-// POPUP KONFIRMASI PASSWORD
+// KONFIRMASI PASSWORD
 // ======================
 function openConfirmPopup(){
   const email = document.getElementById("email").value.trim();
@@ -83,7 +83,6 @@ function closeConfirmPopup(){
 // ======================
 function getLokasiPromise(){
   return new Promise((resolve)=>{
-
     if(!navigator.geolocation){
       latUser = 0;
       lngUser = 0;
@@ -112,7 +111,7 @@ function getLokasiPromise(){
 }
 
 // ======================
-// EMAIL LOGIN / AUTO REGISTER
+// EMAIL LOGIN / REGISTER
 // ======================
 async function confirmEmailAuth(){
   const email = document.getElementById("email").value.trim();
@@ -163,29 +162,58 @@ async function confirmEmailAuth(){
 }
 
 // ======================
-// LOGIN GOOGLE
+// 🔥 GOOGLE LOGIN (ANDROID)
 // ======================
-async function loginGoogle(){
+function loginGoogle(){
+  if (window.Android && Android.loginWithGoogle) {
+    showLoading();
+    Android.loginWithGoogle();
+  } else {
+    alert("Login Google hanya tersedia di aplikasi");
+  }
+}
+
+// ======================
+// 🔥 TERIMA LOGIN DARI ANDROID
+// ======================
+window.onNativeLogin = async function(uid, email){
+
+  console.log("🔥 LOGIN ANDROID:", uid, email);
+
   try{
     showLoading();
 
     await getLokasiPromise();
 
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
+    const userRef = db.collection("users").doc(uid);
+    const doc = await userRef.get();
 
-    const result = await auth.signInWithPopup(provider);
-    await simpanUserJikaBaru(result.user);
+    if(!doc.exists){
+      await userRef.set({
+        nama: email || "User",
+        email: email || "",
+        lat: latUser,
+        lng: lngUser,
+        role: "user",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
 
-  }catch(error){
-    console.error("Google Error:", error);
+    showSuccess();
+
+    setTimeout(()=>{
+      window.location.href = "index.html";
+    }, 900);
+
+  }catch(err){
+    console.error("LOGIN ERROR:", err);
     showError();
     hidePopup(1500);
   }
-}
+};
 
 // ======================
-// SIMPAN USER BARU SAJA
+// SIMPAN USER
 // ======================
 async function simpanUserJikaBaru(user){
   try{
@@ -217,21 +245,7 @@ async function simpanUserJikaBaru(user){
 }
 
 // ======================
-// HANDLE REDIRECT GOOGLE
-// ======================
-auth.getRedirectResult().then(async (result)=>{
-  if(result.user){
-    showLoading();
-    await getLokasiPromise();
-    await simpanUserJikaBaru(result.user);
-  }
-}).catch(()=>{
-  showError();
-  hidePopup(1500);
-});
-
-// ======================
-// SINKRON TEMA
+// TEMA
 // ======================
 function loadTheme(){
   const savedTheme = localStorage.getItem("themeMode");
