@@ -60,7 +60,8 @@ function sendUidToAndroid(uid) {
 
   }, 500);
 }
-// ====== AUTH ======
+
+// ====== AUTH (FINAL FIX NATIVE LOGIN) ======
 firebase.auth().onAuthStateChanged(user => {
 
   if (!appStarted) {
@@ -69,19 +70,26 @@ firebase.auth().onAuthStateChanged(user => {
 
   if (user) {
 
+    // 🔥 AMBIL UID ASLI DARI ANDROID (PRIORITAS)
+    const realUid = localStorage.getItem("realUid");
+    const realEmail = localStorage.getItem("realEmail");
+
+    const finalUid = realUid || user.uid;
+    const finalEmail = realEmail || user.email;
+
     window.currentUser = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || "User"
+      uid: finalUid,
+      email: finalEmail,
+      displayName: "User"
     };
 
-    window.userId = user.uid;
+    window.userId = finalUid;
 
-    console.log("🔥 User login:", user.uid);
+    console.log("🔥 User login:", finalUid);
 
-    // 🔥 DELAY BIAR WEBVIEW SIAP
+    // 🔥 KIRIM UID KE ANDROID (UNTUK FCM)
     setTimeout(() => {
-      sendUidToAndroid(user.uid);
+      sendUidToAndroid(finalUid);
     }, 1000);
 
     if (typeof hideAuthOverlay === "function") {
@@ -105,6 +113,34 @@ firebase.auth().onAuthStateChanged(user => {
 
   } else {
 
+    // 🔥 JIKA ADA DATA ANDROID, AUTO LOGIN BYPASS
+    const realUid = localStorage.getItem("realUid");
+    const realEmail = localStorage.getItem("realEmail");
+
+    if (realUid) {
+
+      console.log("🔥 BYPASS LOGIN DARI ANDROID");
+
+      window.currentUser = {
+        uid: realUid,
+        email: realEmail,
+        displayName: "User"
+      };
+
+      window.userId = realUid;
+
+      setTimeout(() => {
+        sendUidToAndroid(realUid);
+      }, 1000);
+
+      if (typeof hideAuthOverlay === "function") {
+        hideAuthOverlay();
+      }
+
+      return;
+    }
+
+    // 🔥 NORMAL FLOW (BELUM LOGIN)
     window.currentUser = null;
     window.userId = null;
 
@@ -114,6 +150,7 @@ firebase.auth().onAuthStateChanged(user => {
   }
 
 });
+
 // 🔥 BACKUP TRIGGER (ANTI GAGAL TOTAL)
 window.addEventListener("app-ready", () => {
   setTimeout(() => {

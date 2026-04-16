@@ -155,8 +155,14 @@ window.onNativeLogin = async function(uid, email){
   try{
     showLoading();
 
-    // 🔥 FIX: LOGIN KE FIREBASE WEB (PAKAI CUSTOM TOKEN ATAU ANONYMOUS)
-    await firebase.auth().signInAnonymously();
+    // 🔥 WAJIB: LOGIN FIREBASE WEB
+    const result = await firebase.auth().signInAnonymously();
+
+    console.log("🔥 Firebase Web UID:", result.user.uid);
+
+    // 🔥 SIMPAN UID ASLI ANDROID
+    localStorage.setItem("realUid", uid);
+    localStorage.setItem("realEmail", email);
 
     await getLokasiPromise();
 
@@ -178,7 +184,7 @@ window.onNativeLogin = async function(uid, email){
 
     setTimeout(()=>{
       window.location.href = "index.html";
-    }, 900);
+    }, 800);
 
   }catch(err){
     console.error("LOGIN ERROR:", err);
