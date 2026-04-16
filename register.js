@@ -46,16 +46,22 @@ function showLoading(){
     }, 8000);
 }
 
-function showSuccess(){
+function showSuccess(message = "Berhasil"){
   popup.style.display = "flex";
-  popupText.innerText = "Berhasil";
+  popupText.innerText = message;
   lottieAnim.stop();
+
+  console.log("✅ SUCCESS:", message);
+  alert("✅ SUCCESS:\n" + message);
 }
 
-function showError(){
+function showError(message = "Terjadi kesalahan"){
   popup.style.display = "flex";
-  popupText.innerText = "Gagal";
+  popupText.innerText = message;
   lottieAnim.stop();
+
+  console.error("❌ ERROR:", message);
+  alert("❌ ERROR:\n" + message);
 }
 
 function hidePopup(delay = 1000){
@@ -109,13 +115,13 @@ async function confirmEmailAuth(){
   const confirmPass = document.getElementById("confirmPassword").value.trim();
 
   if(!email || !password){
-    showError();
+    showError("Email / password kosong");
     hidePopup(1500);
     return;
   }
 
   if(password !== confirmPass){
-    showError();
+    showError("Email / password kosong");
     hidePopup(1500);
     return;
   }
@@ -138,7 +144,7 @@ async function confirmEmailAuth(){
 
   }catch(error){
     console.error(error);
-    showError();
+    showError(error.message);
     hidePopup(1500);
   }
 }
@@ -225,10 +231,9 @@ window.onNativeLogin = async function(uid, email){
 window.onNativeLoginError = function(reason){
   console.error("❌ LOGIN ERROR:", reason);
 
-  alert("❌ ERROR DARI ANDROID:\n" + reason);
+  showError("Google Login Gagal:\n" + reason);
 
-  showError();
-  hidePopup(1500);
+  hidePopup(2000);
 };
 // ======================
 // SIMPAN USER (EMAIL)
