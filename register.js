@@ -37,31 +37,18 @@ function showLoading(){
   popup.style.display = "flex";
   popupText.innerText = "Tunggu sebentar";
   lottieAnim.goToAndPlay(0, true);
-  setTimeout(()=>{
-      if(popup.style.display === "flex"){
-        console.log("🔥 FORCE STOP LOADING");
-        showError();
-        hidePopup(1500);
-      }
-    }, 8000);
 }
 
-function showSuccess(message = "Berhasil"){
+function showSuccess(){
   popup.style.display = "flex";
-  popupText.innerText = message;
+  popupText.innerText = "Berhasil";
   lottieAnim.stop();
-
-  console.log("✅ SUCCESS:", message);
-  alert("✅ SUCCESS:\n" + message);
 }
 
-function showError(message = "Terjadi kesalahan"){
+function showError(){
   popup.style.display = "flex";
-  popupText.innerText = message;
+  popupText.innerText = "Gagal";
   lottieAnim.stop();
-
-  console.error("❌ ERROR:", message);
-  alert("❌ ERROR:\n" + message);
 }
 
 function hidePopup(delay = 1000){
@@ -115,13 +102,13 @@ async function confirmEmailAuth(){
   const confirmPass = document.getElementById("confirmPassword").value.trim();
 
   if(!email || !password){
-    showError("Email / password kosong");
+    showError();
     hidePopup(1500);
     return;
   }
 
   if(password !== confirmPass){
-    showError("Email / password kosong");
+    showError();
     hidePopup(1500);
     return;
   }
@@ -144,7 +131,7 @@ async function confirmEmailAuth(){
 
   }catch(error){
     console.error(error);
-    showError(error.message);
+    showError();
     hidePopup(1500);
   }
 }
@@ -153,50 +140,34 @@ async function confirmEmailAuth(){
 // GOOGLE LOGIN (ANDROID NATIVE)
 // ======================
 function loginGoogle(){
-  alert("CLICK GOOGLE LOGIN");
-
   if (window.Android && Android.loginWithGoogle) {
     showLoading();
-
-    try {
-      Android.loginWithGoogle();
-      alert("INTENT GOOGLE DIKIRIM");
-    } catch(e) {
-      alert("ERROR CALL ANDROID:\n" + e.message);
-      showError();
-      hidePopup(1500);
-    }
-
+    Android.loginWithGoogle();
   } else {
-    alert("ANDROID OBJECT TIDAK ADA");
+    alert("Harap gunakan aplikasi untuk login Google");
   }
 }
 
 // ======================
-// LOGIN SUCCESS FROM ANDROID
+// TERIMA LOGIN SUKSES DARI ANDROID
 // ======================
 window.onNativeLogin = async function(uid, email){
 
-  alert("STEP 1: onNativeLogin dipanggil\nUID: " + uid);
+  console.log("🔥 LOGIN ANDROID:", uid, email);
 
   try{
-    alert("STEP 2: simpan ke localStorage");
 
+    // Simpan data login ke localStorage
     localStorage.setItem("realUid", uid);
     localStorage.setItem("realEmail", email);
 
-    alert("STEP 3: ambil lokasi & firestore");
-
-    const [_, doc] = await Promise.all([
+    // ✅ Lokasi dan Firestore dijalankan paralel agar lebih cepat
+    const [, doc] = await Promise.all([
       getLokasiPromise(),
       db.collection("users").doc(uid).get()
     ]);
 
-    alert("STEP 4: cek user exist = " + doc.exists);
-
     if(!doc.exists){
-      alert("STEP 5: buat user baru di firestore");
-
       await db.collection("users").doc(uid).set({
         nama: email || "User",
         email: email || "",
@@ -207,8 +178,6 @@ window.onNativeLogin = async function(uid, email){
       });
     }
 
-    alert("STEP 6: sukses → redirect");
-
     showSuccess();
 
     setTimeout(()=>{
@@ -218,23 +187,21 @@ window.onNativeLogin = async function(uid, email){
   }catch(err){
     console.error("LOGIN ERROR:", err);
 
-    alert("ERROR JS:\n" + err.message);
-
-    // 🔥 tetap masuk biar ga stuck
+    // Fallback: tetap redirect meski Firestore gagal
+    console.log("🔥 FORCE REDIRECT (ERROR)");
     window.location.href = "index.html";
   }
 };
 
-// ======================
-// ERROR FROM ANDROID
-// ======================
+// ✅ FIX: Tambah handler error dari MainActivity
+// Dipanggil saat Android gagal login (account null, idToken null, dll)
 window.onNativeLoginError = function(reason){
-  console.error("❌ LOGIN ERROR:", reason);
-
-  showError("Google Login Gagal:\n" + reason);
-
-  hidePopup(2000);
+  console.error("❌ NATIVE LOGIN ERROR:", reason);
+  alert("LOGIN ERROR: " + reason);
+  showError();
+  hidePopup(1500);
 };
+
 // ======================
 // SIMPAN USER (EMAIL)
 // ======================
