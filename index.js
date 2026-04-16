@@ -68,34 +68,39 @@ firebase.auth().onAuthStateChanged(user => {
     initApp();
   }
 
-  if (user || localStorage.getItem("realUid")) {
+  // =========================
+  // ✅ USER SUDAH LOGIN (VALID FIREBASE)
+  // =========================
+  if (user) {
 
-    // 🔥 AMBIL UID ASLI DARI ANDROID (PRIORITAS)
-    const realUid = localStorage.getItem("realUid");
-    const realEmail = localStorage.getItem("realEmail");
-
-    const finalUid = realUid || user.uid;
-    const finalEmail = realEmail || user.email;
+    const uid = user.uid;
+    const email = user.email || "";
 
     window.currentUser = {
-      uid: finalUid,
-      email: finalEmail,
-      displayName: "User"
+      uid: uid,
+      email: email,
+      displayName: user.displayName || "User"
     };
 
-    window.userId = finalUid;
+    window.userId = uid;
 
-    console.log("🔥 User login:", finalUid);
+    console.log("🔥 Firebase User Login:", uid);
 
-    // 🔥 KIRIM UID KE ANDROID (UNTUK FCM)
+    // 🔥 SIMPAN (opsional, buat cache saja)
+    localStorage.setItem("realUid", uid);
+    localStorage.setItem("realEmail", email);
+
+    // 🔥 KIRIM UID KE ANDROID (FCM)
     setTimeout(() => {
-      sendUidToAndroid(finalUid);
+      sendUidToAndroid(uid);
     }, 1000);
 
+    // 🔥 HILANGKAN OVERLAY LOGIN
     if (typeof hideAuthOverlay === "function") {
       hideAuthOverlay();
     }
 
+    // 🔥 EVENT READY
     window.dispatchEvent(
       new CustomEvent("user-ready", {
         detail: { currentUser: window.currentUser }
@@ -107,43 +112,27 @@ firebase.auth().onAuthStateChanged(user => {
       window.dispatchEvent(new Event("app-ready"));
     }
 
+    // 🔥 LOAD DATA
     if (typeof window.loadOrders === "function") {
       window.loadOrders();
     }
 
-  } else {
+  } 
+  // =========================
+  // ❌ BELUM LOGIN
+  // =========================
+  else {
 
-    // 🔥 JIKA ADA DATA ANDROID, AUTO LOGIN BYPASS
-    const realUid = localStorage.getItem("realUid");
-    const realEmail = localStorage.getItem("realEmail");
+    console.log("❌ User belum login");
 
-    if (realUid) {
+    // 🔥 HAPUS CACHE LAMA (penting!)
+    localStorage.removeItem("realUid");
+    localStorage.removeItem("realEmail");
 
-      console.log("🔥 BYPASS LOGIN DARI ANDROID");
-
-      window.currentUser = {
-        uid: realUid,
-        email: realEmail,
-        displayName: "User"
-      };
-
-      window.userId = realUid;
-
-      setTimeout(() => {
-        sendUidToAndroid(realUid);
-      }, 1000);
-
-      if (typeof hideAuthOverlay === "function") {
-        hideAuthOverlay();
-      }
-
-      return;
-    }
-
-    // 🔥 NORMAL FLOW (BELUM LOGIN)
     window.currentUser = null;
     window.userId = null;
 
+    // 🔥 TAMPILKAN LOGIN
     if (typeof showAuthOverlay === "function") {
       showAuthOverlay();
     }

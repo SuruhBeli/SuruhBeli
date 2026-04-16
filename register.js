@@ -20,48 +20,32 @@ const popup = document.getElementById("popup");
 const popupText = document.getElementById("popupText");
 
 // ======================
-// LOTTIE
+// POPUP DEBUG VERSION
 // ======================
-let lottieAnim = lottie.loadAnimation({
-  container: document.getElementById('lottieLoader'),
-  renderer: 'svg',
-  loop: true,
-  autoplay: false,
-  path: 'loading.json'
-});
-
-// ======================
-// POPUP
-// ======================
-function showLoading(){
+function showLoading(msg = "Tunggu sebentar"){
   popup.style.display = "flex";
-  popupText.innerText = "Tunggu sebentar";
-  lottieAnim.goToAndPlay(0, true);
+  popupText.innerText = msg;
 }
 
-function showSuccess(){
+function showSuccess(msg = "Berhasil"){
   popup.style.display = "flex";
-  popupText.innerText = "Berhasil";
-  lottieAnim.stop();
+  popupText.innerText = msg;
 }
 
-function showError(){
+function showError(msg = "Gagal"){
   popup.style.display = "flex";
-  popupText.innerText = "Gagal";
-  lottieAnim.stop();
+  popupText.innerText = msg;
+  alert("❌ ERROR: " + msg); // 🔥 DEBUG ALERT
 }
 
 function hidePopup(delay = 1000){
   setTimeout(()=>{
     popup.style.display = "none";
-    lottieAnim.stop();
   }, delay);
 }
 
 // ======================
 // LOKASI
-// ✅ FIX: Timeout diperkecil dari 10000 → 5000ms
-//         Supaya tidak terasa stuck terlalu lama
 // ======================
 function getLokasiPromise(){
   return new Promise((resolve)=>{
@@ -79,15 +63,14 @@ function getLokasiPromise(){
         resolve();
       },
       ()=>{
-        // Gagal/ditolak → tetap lanjut dengan koordinat 0
         latUser = 0;
         lngUser = 0;
         resolve();
       },
       {
         enableHighAccuracy: true,
-        timeout: 5000,      // ✅ FIX: dari 10000 → 5000
-        maximumAge: 60000   // ✅ FIX: pakai cache lokasi max 1 menit biar lebih cepat
+        timeout: 5000,
+        maximumAge: 60000
       }
     );
   });
@@ -102,21 +85,19 @@ async function confirmEmailAuth(){
   const confirmPass = document.getElementById("confirmPassword").value.trim();
 
   if(!email || !password){
-    showError();
-    hidePopup(1500);
+    showError("Email / Password kosong");
     return;
   }
 
   if(password !== confirmPass){
-    showError();
-    hidePopup(1500);
+    showError("Password tidak sama");
     return;
   }
 
   closeConfirmPopup();
 
   try{
-    showLoading();
+    showLoading("Login email...");
 
     let userCredential;
 
@@ -130,47 +111,52 @@ async function confirmEmailAuth(){
     await simpanUserJikaBaru(userCredential.user);
 
   }catch(error){
-    console.error(error);
-    showError();
-    hidePopup(1500);
+    showError(error.message);
   }
 }
 
 // ======================
-// GOOGLE LOGIN (ANDROID NATIVE)
+// GOOGLE LOGIN (ANDROID)
 // ======================
 function loginGoogle(){
   if (window.Android && Android.loginWithGoogle) {
-    showLoading();
+    showLoading("Membuka Google...");
     Android.loginWithGoogle();
   } else {
-    alert("Harap gunakan aplikasi untuk login Google");
+    showError("Harus dari aplikasi Android");
   }
 }
 
 // ======================
-// TERIMA LOGIN SUKSES DARI ANDROID
+// 🔥 TERIMA TOKEN DARI ANDROID (FIX TOTAL)
 // ======================
-window.onNativeLogin = async function(uid, email){
+window.onNativeLogin = async function(idToken, email){
 
-  console.log("🔥 LOGIN ANDROID:", uid, email);
+  console.log("🔥 TOKEN:", idToken);
 
   try{
+    showLoading("Login Google...");
 
-    // Simpan data login ke localStorage
-    localStorage.setItem("realUid", uid);
-    localStorage.setItem("realEmail", email);
+    // 🔥 LOGIN FIREBASE WEB PAKAI TOKEN
+    const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+    const result = await firebase.auth().signInWithCredential(credential);
 
-    // ✅ Lokasi dan Firestore dijalankan paralel agar lebih cepat
+    const user = result.user;
+
+    console.log("🔥 LOGIN SUKSES:", user.uid);
+
+    localStorage.setItem("realUid", user.uid);
+    localStorage.setItem("realEmail", user.email);
+
     const [, doc] = await Promise.all([
       getLokasiPromise(),
-      db.collection("users").doc(uid).get()
+      db.collection("users").doc(user.uid).get()
     ]);
 
     if(!doc.exists){
-      await db.collection("users").doc(uid).set({
-        nama: email || "User",
-        email: email || "",
+      await db.collection("users").doc(user.uid).set({
+        nama: user.email || "User",
+        email: user.email || "",
         lat: latUser,
         lng: lngUser,
         role: "user",
@@ -178,32 +164,28 @@ window.onNativeLogin = async function(uid, email){
       });
     }
 
-    showSuccess();
+    showSuccess("Login berhasil");
 
     setTimeout(()=>{
       window.location.href = "index.html";
     }, 800);
 
   }catch(err){
-    console.error("LOGIN ERROR:", err);
-
-    // Fallback: tetap redirect meski Firestore gagal
-    console.log("🔥 FORCE REDIRECT (ERROR)");
-    window.location.href = "index.html";
+    console.error(err);
+    showError("Google login gagal: " + err.message);
   }
 };
 
-// ✅ FIX: Tambah handler error dari MainActivity
-// Dipanggil saat Android gagal login (account null, idToken null, dll)
+// ======================
+// ERROR DARI ANDROID
+// ======================
 window.onNativeLoginError = function(reason){
-  console.error("❌ NATIVE LOGIN ERROR:", reason);
-  alert("LOGIN ERROR: " + reason);
-  showError();
-  hidePopup(1500);
+  console.error("❌ NATIVE ERROR:", reason);
+  showError(reason);
 };
 
 // ======================
-// SIMPAN USER (EMAIL)
+// SIMPAN USER EMAIL
 // ======================
 async function simpanUserJikaBaru(user){
   try{
@@ -221,29 +203,26 @@ async function simpanUserJikaBaru(user){
       });
     }
 
-    showSuccess();
+    showSuccess("Login berhasil");
 
     setTimeout(()=>{
       window.location.href = "index.html";
     }, 900);
 
   }catch(err){
-    console.error(err);
-    showError();
-    hidePopup(1500);
+    showError("Firestore gagal: " + err.message);
   }
 }
 
 // ======================
-// KONFIRMASI PASSWORD
+// UI
 // ======================
 function openConfirmPopup(){
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
 
   if(!email || !password){
-    showError();
-    hidePopup(1500);
+    showError("Isi dulu email & password");
     return;
   }
 
