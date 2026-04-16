@@ -235,15 +235,21 @@ async function simpanUserJikaBaru(user){
 }
 
 // ======================
-// TEMA
+// KONFIRMASI PASSWORD
 // ======================
-function loadTheme(){
-  const savedTheme = localStorage.getItem("themeMode");
-  if(savedTheme === "dark"){
-    document.body.classList.add("dark-mode");
-  }else{
-    document.body.classList.remove("dark-mode");
+function openConfirmPopup(){
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  if(!email || !password){
+    showError();
+    hidePopup(1500);
+    return;
   }
+
+  document.getElementById("confirmPopup").style.display = "flex";
 }
 
-window.addEventListener("load", loadTheme);
+function closeConfirmPopup(){
+  document.getElementById("confirmPopup").style.display = "none";
+}
