@@ -37,6 +37,13 @@ function showLoading(){
   popup.style.display = "flex";
   popupText.innerText = "Tunggu sebentar";
   lottieAnim.goToAndPlay(0, true);
+  setTimeout(()=>{
+      if(popup.style.display === "flex"){
+        console.log("🔥 FORCE STOP LOADING");
+        showError();
+        hidePopup(1500);
+      }
+    }, 8000);
 }
 
 function showSuccess(){
@@ -142,26 +149,29 @@ async function confirmEmailAuth(){
 function loginGoogle(){
   if (window.Android && Android.loginWithGoogle) {
     showLoading();
-    Android.loginWithGoogle();
+    try {
+      Android.loginWithGoogle();
+    } catch(e) {
+      console.error(e);
+      showError();
+      hidePopup(1500);
+    }
   } else {
-    alert("Harap gunakan aplikasi untuk login Google");
+    alert("Harap gunakan aplikasi");
   }
 }
 
 // ======================
-// TERIMA LOGIN SUKSES DARI ANDROID
+// LOGIN SUCCESS FROM ANDROID
 // ======================
 window.onNativeLogin = async function(uid, email){
 
   console.log("🔥 LOGIN ANDROID:", uid, email);
 
   try{
-
-    // Simpan data login ke localStorage
     localStorage.setItem("realUid", uid);
     localStorage.setItem("realEmail", email);
 
-    // ✅ Lokasi dan Firestore dijalankan paralel agar lebih cepat
     const [, doc] = await Promise.all([
       getLokasiPromise(),
       db.collection("users").doc(uid).get()
@@ -187,17 +197,17 @@ window.onNativeLogin = async function(uid, email){
   }catch(err){
     console.error("LOGIN ERROR:", err);
 
-    // Fallback: tetap redirect meski Firestore gagal
-    console.log("🔥 FORCE REDIRECT (ERROR)");
+    // 🔥 FORCE MASUK WALAU ERROR
     window.location.href = "index.html";
   }
 };
 
-// ✅ FIX: Tambah handler error dari MainActivity
-// Dipanggil saat Android gagal login (account null, idToken null, dll)
+// ======================
+// ERROR FROM ANDROID
+// ======================
 window.onNativeLoginError = function(reason){
-  console.error("❌ NATIVE LOGIN ERROR:", reason);
-  alert("LOGIN ERROR: " + reason);
+  console.error("❌ LOGIN ERROR:", reason);
+  alert(reason);
   showError();
   hidePopup(1500);
 };
