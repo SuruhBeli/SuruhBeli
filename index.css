@@ -91,7 +91,7 @@ html, body {
   left: 0;
   width: 100%;
   height: 30px;
-  background: #FB923C;
+  background: #FB923C !important;
   box-shadow: none;
   display: flex;
   align-items: center;
@@ -114,7 +114,7 @@ html, body {
   display:flex;
   align-items:center;
   padding:0 16px;
-  background: #FB923C;
+  background: #FB923C !important;
   color: #ffffff;
   box-shadow: none;
   border-bottom-left-radius: 20px;

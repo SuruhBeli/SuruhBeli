@@ -55,7 +55,7 @@
   right: 0;
   width: 100%;
   padding: 16px 12px;
-  background: #FB923C;
+  background: #FB923C !important;
   box-shadow: none;
   color: white;
   align-items: center;
