@@ -64,7 +64,7 @@
   font-size: 1.4em;
   z-index: 10;
   gap: 12px;
-  height: 56px;
+  height: 80px;
   display: flex;
 }
 .back-btn {
@@ -75,12 +75,14 @@
   align-items: center;
   justify-content: center;
   padding: 4px;
+  margin-top: 30px;
 }
 .partner-info {
   display: flex;
   align-items: center;
   gap: 8px;
   flex: 1;
+  margin-top: 30px;
 }
 .partner-photo {
   width: 36px;

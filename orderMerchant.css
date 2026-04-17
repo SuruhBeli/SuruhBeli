@@ -43,7 +43,7 @@
 /* ========================= */
 #view-orderMerchant .merchant-hero{
   width:100%;
-  height:220px;
+  height:30vh;
   background-size:cover;
   background-position:center;
   position:relative;
@@ -67,7 +67,7 @@
 /* ========================= */
 #view-orderMerchant .back-btn{
   position:absolute;
-  top:16px;
+  top:36px;
   left:16px;
   width:38px;
   height:38px;

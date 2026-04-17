@@ -34,7 +34,7 @@ html, body {
 /* ===== LOGO TOP ===== */
 .logo-top {
   position: fixed;
-  top: 6px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -90,7 +90,7 @@ html, body {
   top: 0;
   left: 0;
   width: 100%;
-  height: 30px;
+  height: 40px;
   background: #FB923C;
   box-shadow: none;
   display: flex;
@@ -110,7 +110,7 @@ html, body {
   top:0;
   left:0;
   width:100%;
-  height:60px;
+  height:80px;
   display:flex;
   align-items:center;
   padding:0 16px;
@@ -133,6 +133,7 @@ html, body {
 .header-title{
   display:none;
   font-size:18px;
+  margin-top: 30px;
   font-weight:600;
 }
 .header-title.active{
