@@ -59,7 +59,7 @@ document.addEventListener("click",(e)=>{
 });
 
 // ===== FLAG =====
-let fotoBase64 = null;
+let fotoFile = null;
 let isSubmitting = false;
 
 // ===== AUTH =====
@@ -126,49 +126,51 @@ function tampilkanLimitState(pesan){
   },300);
 }
 
+const CLOUD_NAME = "dim42m83n";
+const UPLOAD_PRESET = "profil_upload";
+
+async function uploadToCloudinary(file){
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+
+  try{
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,{
+      method: "POST",
+      body: formData
+    });
+
+    const data = await res.json();
+    console.log("CLOUDINARY:", data);
+
+    return data.secure_url || null;
+
+  }catch(err){
+    console.error("Upload error:", err);
+    return null;
+  }
+}
+
 // klik preview untuk upload foto
 uploadArea.addEventListener("click", ()=>{
   fotoInput.click();
 });
 
 // ===== INPUT FOTO =====
-fotoInput.addEventListener("change", async function(){
+fotoInput.addEventListener("change", function(){
   const file = this.files[0];
   if(!file) return;
-  fotoBase64 = await compressImage(file);
-  previewFoto.src = fotoBase64;
+
+  fotoFile = file;
+
+  // preview cepat
+  const previewURL = URL.createObjectURL(file);
+  previewFoto.src = previewURL;
   previewFoto.style.display = "block";
   previewContainer.querySelector(".preview-placeholder").style.display = "none";
+
   cekFormLengkap();
 });
-
-// ===== COMPRESS FOTO =====
-function compressImage(file){
-  return new Promise((resolve)=>{
-    const reader = new FileReader();
-    reader.onload = function(e){
-      const img = new Image();
-      img.src = e.target.result;
-      img.onload = function(){
-        const canvas = document.createElement("canvas");
-        const maxWidth = 800;
-        let width = img.width;
-        let height = img.height;
-        if(width > maxWidth){
-          height *= maxWidth / width;
-          width = maxWidth;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img,0,0,width,height);
-        const compressed = canvas.toDataURL("image/jpeg",0.7);
-        resolve(compressed);
-      };
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 // ===== AMBIL LOKASI =====
 ambilLokasiBtn.addEventListener("click", ()=>{
@@ -224,7 +226,7 @@ function cekFormLengkap(){
     pemilikHp &&
     lat &&
     lng &&
-    fotoBase64 &&
+    fotoFile &&
     setujuCheckbox.checked
   ){
     submitBtn.disabled = false;
@@ -276,15 +278,27 @@ okBtn.addEventListener("click", async ()=>{
     createdAt:firebase.firestore.FieldValue.serverTimestamp()
   };
   try{
-    if(fotoBase64){
-      data.tokoFotoBase64 = fotoBase64;
+    if(fotoFile){
+      console.log("⏳ Upload ke Cloudinary...");
+      const url = await uploadToCloudinary(fotoFile);
+    
+      if(!url){
+        showAlert("Upload foto gagal 😔");
+        document.getElementById("loadingOverlay").style.display="none";
+        isSubmitting = false;
+        return;
+      }
+    
+      console.log("✅ URL:", url);
+      data.tokoFoto = url; // 🔥 simpan URL ke Firestore
     }
     await db.collection('dataToko').add(data);
     document.getElementById("loadingOverlay").style.display="none";
     showAlert("Berhasil daftar, tunggu persetujuan Admin");
     form.reset();
     previewContainer.style.display="none";
-    fotoBase64=null;
+    fotoFile = null;
+    fotoURL = null;
   }catch(err){
     document.getElementById("loadingOverlay").style.display="none";
     showAlert("Gagal mendaftar toko");

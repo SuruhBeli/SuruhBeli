@@ -8,15 +8,15 @@
 
 <!-- Google Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-
 </head>
+
 <body>
 
 <div class="header"><span>Daftar Merchant</span></div>
 
+<!-- ===== LIMIT STATE ===== -->
 <div id="limitTokoState" class="limit-state" style="display:none">
   <lottie-player
-    id="limitLottie"
     src="limitToko.json"
     background="transparent"
     speed="1"
@@ -24,93 +24,95 @@
     loop
     autoplay>
   </lottie-player>
+
   <h3>Kamu sudah memiliki 2 toko</h3>
   <p>
     Saat ini kamu sudah mencapai batas maksimal
     pendaftaran toko dalam sistem.
   </p>
+
   <button class="btn-kembali" onclick="window.location.href='index.html#profil'">
     Kembali ke Profil
   </button>
 </div>
 
+<!-- ===== FORM ===== -->
 <div class="container" id="formContainer">
-  <form id="formMitraToko">
-    <h3>Data Merchant</h3>
-    <label>Nama Toko / Dagangan</label>
-    <input type="text" id="tokoNama" placeholder="Masukkan nama toko / dagangan" required>
 
-    <label>Deskripsi Singkat</label>
-    <textarea 
-      id="tokoDeskripsi"
-      placeholder="Deskripsikan Toko atau dagangan Anda"
-      maxlength="70"
-      required
-    ></textarea>
-    <div id="deskripsiCounter">0 / 70</div>
+<form id="formMitraToko">
 
-    <label>Alamat / Pangkalan</label>
-    <textarea id="tokoAlamat" placeholder="Desa dan blok atau pasar" required></textarea>
-    <label>Kategori</label>
+  <!-- ===== DATA MERCHANT ===== -->
+  <h3>Data Merchant</h3>
 
-    <div class="custom-dropdown" id="kategoriDropdown">
-      <div class="dropdown-selected" id="kategoriSelected">
-        Pilih kategori
-      </div>
-      <div class="dropdown-options" id="kategoriOptions">
-        <div class="dropdown-item" data-value="makanan_minuman">Makanan & Minuman</div>
-        <div class="dropdown-item" data-value="sembako">Sembako</div>
-        <div class="dropdown-item" data-value="lainnya">Lainnya</div>
-      </div>
+  <label>Nama Toko / Dagangan</label>
+  <input type="text" id="tokoNama" placeholder="Masukkan nama toko / dagangan" required>
+
+  <label>Deskripsi Singkat</label>
+  <textarea id="tokoDeskripsi" placeholder="Deskripsikan toko Anda" maxlength="70" required></textarea>
+  <div id="deskripsiCounter">0 / 70</div>
+
+  <label>Alamat / Pangkalan</label>
+  <textarea id="tokoAlamat" placeholder="Desa / blok / pasar" required></textarea>
+
+  <label>Kategori</label>
+  <div class="custom-dropdown" id="kategoriDropdown">
+    <div class="dropdown-selected" id="kategoriSelected">
+      Pilih kategori
     </div>
-    <input type="hidden" id="tokoKategori">
-
-    <button type="button" id="ambilLokasiBtn">Lokasi Toko / Pangkalan</button>
-    <input type="hidden" id="tokoLat">
-    <input type="hidden" id="tokoLng">
-
-    <label>Foto Toko / Dagangan</label>
-    <div class="preview-container" id="uploadArea">
-      <input type="file" id="tokoFoto" accept="image/*" hidden>
-      <div class="preview-placeholder">
-        <svg class="camera-icon" viewBox="0 0 24 24" fill="none">
-          <path d="M4 7h3l2-2h6l2 2h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"
-          stroke="currentColor" stroke-width="2"/>
-          <circle cx="12" cy="13" r="4"
-          stroke="currentColor" stroke-width="2"/>
-        </svg>
-        <div class="upload-text">
-          Upload Foto Landscape
-        </div>
-      </div>
-      <img id="previewFoto" />
+    <div class="dropdown-options" id="kategoriOptions">
+      <div class="dropdown-item" data-value="makanan_minuman">Makanan & Minuman</div>
+      <div class="dropdown-item" data-value="sembako">Sembako</div>
+      <div class="dropdown-item" data-value="lainnya">Lainnya</div>
     </div>
-  </form>
-  <form id="formMitraToko">
-    <h3>Data Pemilik</h3>
-    <label>Nama Lengkap</label>
-    <input type="text" id="pemilikNama" placeholder="Nama pemilik toko" required>
+  </div>
+  <input type="hidden" id="tokoKategori">
 
-    <label>No HP</label>
-    <input type="tel" id="pemilikHp" placeholder="0812xxxxxxx" required>
+  <button type="button" id="ambilLokasiBtn">📍 Ambil Lokasi Toko</button>
+  <input type="hidden" id="tokoLat">
+  <input type="hidden" id="tokoLng">
 
-    <div class="terms-box">
-      <label class="terms-check">
-        <input type="checkbox" id="setujuSyarat">
-        Saya menyetujui <span id="lihatSyarat">Syarat & Ketentuan</span>
-      </label>
+  <!-- ===== FOTO ===== -->
+  <label>Foto Toko / Dagangan</label>
+  <div class="preview-container" id="uploadArea">
+    <input type="file" id="tokoFoto" accept="image/*" hidden>
+
+    <div class="preview-placeholder">
+      <div class="upload-text">Upload Foto</div>
     </div>
-    
-    <button type="submit" id="submitBtn">Daftarkan Toko</button>
-  </form>
-  <div id="status"></div>
+
+    <img id="previewFoto" style="display:none;" />
+  </div>
+
+  <!-- ===== DATA PEMILIK ===== -->
+  <h3>Data Pemilik</h3>
+
+  <label>Nama Lengkap</label>
+  <input type="text" id="pemilikNama" placeholder="Nama pemilik toko" required>
+
+  <label>No HP</label>
+  <input type="tel" id="pemilikHp" placeholder="0812xxxxxxx" required>
+
+  <!-- ===== SYARAT ===== -->
+  <div class="terms-box">
+    <label class="terms-check">
+      <input type="checkbox" id="setujuSyarat">
+      Saya menyetujui <span id="lihatSyarat">Syarat & Ketentuan</span>
+    </label>
+  </div>
+
+  <button type="submit" id="submitBtn">Daftarkan Toko</button>
+
+</form>
+
 </div>
 
-<div id="loadingOverlay">
+<!-- ===== LOADING ===== -->
+<div id="loadingOverlay" style="display:none;">
   <div class="loader"></div>
   <p>Menyimpan data...</p>
 </div>
 
+<!-- ===== POPUP KONFIRMASI ===== -->
 <div id="popupKonfirmasi" class="popup">
   <div class="popup-box">
     <p>Yakin ingin mendaftarkan toko ini?</p>
@@ -121,46 +123,38 @@
   </div>
 </div>
 
+<!-- ===== POPUP ALERT ===== -->
 <div class="popup" id="popupAlert">
   <div class="popup-box">
     <p id="alertText"></p>
   </div>
 </div>
 
+<!-- ===== POPUP SYARAT ===== -->
 <div class="popup" id="popupSyarat">
   <div class="popup-box syarat-box">
-    <div class="popup-header">
-      Syarat & Ketentuan Mitra Toko
-    </div>
+    <div class="popup-header">Syarat & Ketentuan</div>
+
     <div class="syarat-content">
-      <p><b>1. Tujuan Pendaftaran</b><br>
-      Pendaftaran toko bertujuan untuk mempermudah pengguna memilih lokasi toko saat menggunakan layanan titip beli dan jasa antar.</p>
-      <p><b>2. Kepemilikan Toko</b><br>
-      Toko yang didaftarkan harus merupakan milik sendiri dan tidak boleh mendaftarkan toko orang lain tanpa izin.</p>
-      <p><b>3. Batas Maksimal Pendaftaran</b><br>
-      Setiap akun hanya dapat mendaftarkan maksimal 2 toko.</p>
-      <p><b>4. Status Pendaftaran</b><br>
-      Jika terdapat toko dengan status <b>pending</b>, pengguna tidak dapat mendaftarkan toko baru sampai proses verifikasi selesai.</p>
-      <p><b>5. Verifikasi Admin</b><br>
-      Semua pendaftaran toko akan melalui proses peninjauan oleh admin sebelum ditampilkan di platform.</p>
-      <p><b>6. Penolakan Pendaftaran</b><br>
-      Jika pendaftaran ditolak, pengguna dapat melakukan pendaftaran ulang dengan data yang benar.</p>
-      <p><b>7. Keakuratan Informasi</b><br>
-      Pengguna wajib memberikan informasi toko yang benar seperti nama toko, alamat, lokasi, dan foto toko.</p>
-      <p><b>8. Hak Admin</b><br>
-      Admin berhak menolak, menonaktifkan, atau menghapus toko yang melanggar ketentuan platform.</p>
+      <p><b>1.</b> Toko harus milik sendiri</p>
+      <p><b>2.</b> Maksimal 2 toko per akun</p>
+      <p><b>3.</b> Harus menunggu verifikasi admin</p>
+      <p><b>4.</b> Data harus valid</p>
     </div>
+
     <div class="popup-footer">
       <button onclick="tutupSyarat()">Saya Mengerti</button>
     </div>
   </div>
 </div>
 
+<!-- ===== SCRIPTS ===== -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 <script src="mitratoko.js"></script>
+
 </body>
 </html>

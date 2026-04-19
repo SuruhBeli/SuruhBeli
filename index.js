@@ -479,6 +479,34 @@ document.addEventListener("keydown", function(e){
     document.body.classList.remove("popup-open");
   }
 });
+const CLOUD_NAME = "dim42m83n";
+const UPLOAD_PRESET = "profil_upload";
+
+async function uploadToCloudinary(file){
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+
+  try{
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,{
+      method: "POST",
+      body: formData
+    });
+
+    const data = await res.json();
+    console.log("CLOUDINARY:", data);
+
+    if(data.secure_url){
+      return data.secure_url;
+    }
+
+    return null;
+
+  }catch(err){
+    console.error("Upload error:", err);
+    return null;
+  }
+}
 // ====== GLOBAL POPUP MANAGER ====== //
 window.PopupManager = (function(){
   // DOM references
@@ -566,35 +594,44 @@ window.PopupManager = (function(){
 function showEditProfile(userData) {
   const popup = document.getElementById("popupEditProfile");
   if (!popup) return;
-  // Isi input
-  document.getElementById("editNama").value = userData?.nama || "";
-  document.getElementById("editNoHP").value = userData?.noHP || userData?.phone || "";
-  // Preview avatar
+
+  // ===== INPUT DATA =====
+  const inputNama = document.getElementById("editNama");
+  const inputNoHP = document.getElementById("editNoHP");
+
+  if (inputNama) inputNama.value = userData?.nama || "";
+  if (inputNoHP) inputNoHP.value = userData?.noHP || userData?.phone || "";
+
+  // ===== PREVIEW AVATAR =====
   const editPreview = document.getElementById("editAvatarPreview");
-  if (userData?.photoURL) {
-    editPreview.innerHTML = `<img src="${userData.photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-  } else if (userData?.nama && userData.nama.length > 0) {
-    editPreview.textContent = userData.nama.charAt(0).toUpperCase();
-  } else {
-    editPreview.textContent = "U";
+
+  if (editPreview) {
+    if (userData?.photoURL) {
+      editPreview.innerHTML = `
+        <img src="${userData.photoURL}" 
+        style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+      `;
+    } else if (userData?.nama && userData.nama.length > 0) {
+      editPreview.textContent = userData.nama.charAt(0).toUpperCase();
+    } else {
+      editPreview.textContent = "U";
+    }
   }
-  // Upload photo
-  const inputPhoto = document.getElementById("inputPhoto");
+
+  // ===== BUTTON UPLOAD (BUKA PILIHAN) =====
   const btnUpload = document.getElementById("btnUploadPhoto");
-  if (btnUpload && inputPhoto) {
-    btnUpload.onclick = () => showPhotoOption();
-    inputPhoto.onchange = function() {
-      const file = this.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const base64 = e.target.result;
-        editPreview.innerHTML = `<img src="${base64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-        localStorage.setItem("tempProfilePhoto", base64);
-      };
-      reader.readAsDataURL(file);
+  if (btnUpload) {
+    btnUpload.onclick = () => {
+      if (typeof PopupManager !== "undefined") {
+        PopupManager.showPhotoOption();
+      }
     };
   }
+
+  // ===== RESET TEMP PHOTO (PENTING) =====
+  localStorage.removeItem("tempProfilePhoto");
+
+  // ===== SHOW POPUP =====
   popup.classList.add("show");
   document.body.classList.add("popup-open");
 }
@@ -639,18 +676,28 @@ function showEditProfile(userData) {
     btnCancel.onclick = closePhotoOption;
   }
   if (inputPhoto) {
-    inputPhoto.onchange = function () {
+    inputPhoto.onchange = async function () {
       const file = this.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const base64 = e.target.result;
-        if (editPreview) {
-          editPreview.innerHTML = `<img src="${base64}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-        }
-        localStorage.setItem("tempProfilePhoto", base64);
-      };
-      reader.readAsDataURL(file);
+  
+      const editPreview = document.getElementById("editAvatarPreview");
+  
+      // ✅ preview cepat
+      const previewURL = URL.createObjectURL(file);
+      if (editPreview) {
+        editPreview.innerHTML = `<img src="${previewURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      }
+  
+      // 🔥 upload ke cloudinary
+      const url = await uploadToCloudinary(file);
+  
+      if(url){
+        console.log("✅ Upload sukses:", url);
+        localStorage.setItem("tempProfilePhoto", url);
+      }else{
+        console.log("❌ Upload gagal");
+        alert("Upload gagal 😔");
+      }
     };
   }
     // ==================== PUBLIC API ====================
