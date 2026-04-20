@@ -311,14 +311,18 @@ input?.addEventListener("keydown", e => {
     sendMessage();
   }
 });
-function sendMessage() {
+async function sendMessage() {
   const user = window.currentUser;
   if (!roomId || !user || !input) return;
+
   const typingRef = rtdb.ref(`typing/${roomId}/${user.uid}`);
   typingRef.set(false);
+
   const text = input.value.trim();
   if (!text) return;
+
   const localTime = Date.now();
+
   const messageData = {
     senderId: user.uid,
     text,
@@ -327,7 +331,7 @@ function sendMessage() {
     localCreatedAt: localTime,
     deleted: false,
     deletedFor: {},
-    // 🔥 WAJIB
+
     deliveredTo: {
       [user.uid]: true
     },
@@ -335,51 +339,89 @@ function sendMessage() {
       [user.uid]: true
     }
   };
-  // ===== Reply Support =====
+
+  // ===== REPLY =====
   if (replyState.active) {
     messageData.replyTo = {
       messageId: replyState.messageId,
       text: replyState.text
     };
   }
-  // ===== Optimistic UI =====
+
+  // ===== OPTIMISTIC UI =====
   const tempMessage = {
     id: "temp_" + localTime,
     ...messageData,
     createdAt: localTime,
     isTemp: true
   };
+
   renderMessages({
     forEach: (cb) => cb({
       id: tempMessage.id,
       data: () => tempMessage
     })
   }, { appendOnly: true });
-  // ===== Reset deletedFor supaya room muncul lagi =====
+
+  // ===== RESET ROOM =====
   db.collection("chatRooms")
     .doc(roomId)
-    .set({ deletedFor: {} }, { merge: true })
-    .catch(err => console.error("Reset deletedFor error:", err));
-  // ===== Kirim ke Firestore =====
-  db.collection("chatRooms")
-    .doc(roomId)
-    .collection("messages")
-    .add(messageData)
-    .then(docRef => {
-      // 🚀 Update last message
-      return db.collection("chatRooms")
-        .doc(roomId)
-        .update({
-          lastMessage: text,
-          lastSenderId: user.uid,
-          lastTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
-          lastType: "text"
-        })
-        .then(() => {
-        });
-    })
-    .catch(err => console.error("Send message error:", err));
-  // ===== Reset Input =====
+    .set({ deletedFor: {} }, { merge: true });
+
+  try {
+    // ===== SAVE MESSAGE =====
+    await db.collection("chatRooms")
+      .doc(roomId)
+      .collection("messages")
+      .add(messageData);
+
+    // ===== UPDATE LAST MESSAGE =====
+    await db.collection("chatRooms")
+      .doc(roomId)
+      .update({
+        lastMessage: text,
+        lastSenderId: user.uid,
+        lastTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        lastType: "text"
+      });
+
+    // ==============================
+    // 🔥 AMBIL FCM TOKEN KURIR
+    // ==============================
+    let fcmToken = null;
+
+    if (otherUserId) {
+      const kurirDoc = await db.collection("kurir").doc(otherUserId).get();
+
+      if (kurirDoc.exists) {
+        fcmToken = kurirDoc.data().fcmToken || null;
+      }
+    }
+
+    // ==============================
+    // 🔔 KIRIM NOTIF KE KURIR
+    // ==============================
+    if (fcmToken) {
+      await window.sendNotification({
+        token: fcmToken,
+        title: "Chat baru",
+        body: "Ada pesan baru dari customer",
+        data: {
+          type: "chat",
+          roomId: roomId
+        }
+      });
+
+      console.log("📩 Notif terkirim ke kurir");
+    } else {
+      console.warn("⚠️ FCM token kurir tidak ditemukan");
+    }
+
+  } catch (err) {
+    console.error("❌ Send message error:", err);
+  }
+
+  // ===== RESET INPUT =====
   input.value = "";
   input.style.height = "auto";
   cancelReply();
